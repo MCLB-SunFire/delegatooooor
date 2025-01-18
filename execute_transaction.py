@@ -1,7 +1,6 @@
 import os
 import requests
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
 from eth_account import Account
 from dotenv import load_dotenv
 
@@ -40,7 +39,6 @@ SAFE_ABI = [
 
 # Connect to the Sonic RPC
 web3 = Web3(Web3.HTTPProvider(SONIC_RPC_URL))
-web3.middleware_onion.inject(geth_poa_middleware, layer=0)  # Use for PoA networks
 if web3.is_connected():
     print("Connected to Sonic network")
 else:
