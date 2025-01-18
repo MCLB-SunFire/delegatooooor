@@ -86,16 +86,17 @@ def execute_transaction(transaction):
             "to": transaction["to"],
             "value": int(transaction["value"]),
             "data": transaction["data"],
-            "gas": 350000,  # Adjust gas limit
+            "gas": 350000,  # Adjust gas limit if necessary
             "gasPrice": web3.eth.gas_price,
             "nonce": web3.eth.get_transaction_count(account.address),
+            "chainId": web3.eth.chain_id,  # Include chain ID for EIP-155
         }
 
         print(f"Prepared transaction: {execution_tx}")
 
         # Sign and send the transaction
         signed_tx = web3.eth.account.sign_transaction(execution_tx, PRIVATE_KEY)
-        tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)  # Updated here
+        tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         print(f"Transaction executed successfully. Hash: {web3.toHex(tx_hash)}")
         return web3.toHex(tx_hash)
