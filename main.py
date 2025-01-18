@@ -59,7 +59,7 @@ async def report(ctx):
 def format_transaction_report(result):
     """Format the transaction report for Discord in a table-like structure."""
     report_lines = [
-        f"Staking Contract Balance: {result['staking_balance']} S tokens\n",
+        f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",
         "**Pending Transactions:**\n",
         "```",  # Use Markdown code block for table formatting
         f"{'Nonce':<8} {'Validator ID':<15} {'Amount':<20} {'Status'}",
