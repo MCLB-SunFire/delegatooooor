@@ -24,21 +24,24 @@ else:
 account = Account.from_key(PRIVATE_KEY)
 print(f"Executor Address: {account.address}")
 
-
 def fetch_transaction_by_nonce(nonce):
     """Fetch transaction details from the Safe API by nonce."""
     try:
         response = requests.get(f"{BASE_URL}/multisig-transactions/", params={"safe": SAFE_ADDRESS, "nonce": nonce})
+        print(f"Fetching transaction for nonce {nonce}: {response.status_code}")
+        print(f"Response: {response.json()}")  # Log the raw response for debugging
+
         if response.status_code == 200:
             data = response.json()
-            if data and data["results"]:
-                return data["results"][0]  # Return the first matching transaction
+            # Ensure we only return matching transactions with the correct nonce
+            for tx in data.get("results", []):
+                if tx["nonce"] == nonce:
+                    return tx
         print(f"No transaction found for nonce {nonce}.")
         return None
     except Exception as e:
         print(f"Error fetching transaction by nonce: {e}")
         return None
-
 
 def is_transaction_executable(transaction):
     """Check if a transaction is ready for execution."""
@@ -52,28 +55,38 @@ def is_transaction_executable(transaction):
         return False
     return True
 
-
 def execute_transaction(transaction):
     """Execute a transaction if it is ready."""
     try:
-        if not is_transaction_executable(transaction):
-            return False
+        # Ensure the transaction has all required fields
+        if not transaction:
+            print("Transaction object is None.")
+            return None
+
+        if "to" not in transaction or "data" not in transaction or "value" not in transaction:
+            print(f"Transaction object is missing required fields: {transaction}")
+            return None
+
+        # Log transaction details
+        print(f"Executing transaction: {transaction}")
 
         # Prepare the transaction
         execution_tx = {
             "to": transaction["to"],
             "value": int(transaction["value"]),
             "data": transaction["data"],
-            "gas": 350000,  # Adjust gas limit
+            "gas": 300000,  # Adjust gas limit
             "gasPrice": web3.eth.gas_price,
             "nonce": web3.eth.get_transaction_count(account.address),
         }
+
+        print(f"Prepared transaction: {execution_tx}")
 
         # Sign and send the transaction
         signed_tx = web3.eth.account.sign_transaction(execution_tx, PRIVATE_KEY)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-        print(f"Transaction {transaction['nonce']} executed successfully. Hash: {web3.toHex(tx_hash)}")
+        print(f"Transaction executed successfully. Hash: {web3.toHex(tx_hash)}")
         return web3.toHex(tx_hash)
     except Exception as e:
         print(f"Error executing transaction: {e}")
