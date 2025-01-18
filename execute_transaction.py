@@ -115,7 +115,7 @@ def execute_transaction(transaction):
         operation = transaction.get("operation", 0)  # Default to 0 if not specified
         safeTxGas = transaction.get("safeTxGas", 0)
         baseGas = transaction.get("baseGas", 0)
-        gasPrice = 0  # Set gasPrice to 0 for Safe transactions
+        gasPrice = transaction.get("gasPrice", 0)
         gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
         refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
 
