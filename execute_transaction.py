@@ -27,18 +27,29 @@ print(f"Executor Address: {account.address}")
 def fetch_transaction_by_nonce(nonce):
     """Fetch transaction details from the Safe API by nonce."""
     try:
-        response = requests.get(f"{BASE_URL}/multisig-transactions/", params={"safe": SAFE_ADDRESS, "nonce": nonce})
-        print(f"Fetching transaction for nonce {nonce}: {response.status_code}")
-        print(f"Response: {response.json()}")  # Log the raw response for debugging
+        # Fetch all pending transactions
+        url = f"{BASE_URL}/api/v1/safes/{SAFE_ADDRESS}/multisig-transactions/"
+        response = requests.get(url)
+        print(f"Fetching transactions for Safe {SAFE_ADDRESS}: {response.status_code}")
 
+        # Check for successful response
         if response.status_code == 200:
             data = response.json()
-            # Ensure we only return matching transactions with the correct nonce
-            for tx in data.get("results", []):
-                if tx["nonce"] == nonce:
-                    return tx
-        print(f"No transaction found for nonce {nonce}.")
+            if "results" in data:
+                # Filter for the transaction with the specific nonce
+                for tx in data["results"]:
+                    if tx["nonce"] == nonce:
+                        print(f"Found transaction for nonce {nonce}: {tx}")
+                        return tx
+
+            print(f"No transaction found for nonce {nonce}.")
+            return None
+
+        # Handle API errors
+        print(f"Failed to fetch transactions. Status code: {response.status_code}")
+        print(f"Response: {response.text}")
         return None
+
     except Exception as e:
         print(f"Error fetching transaction by nonce: {e}")
         return None
