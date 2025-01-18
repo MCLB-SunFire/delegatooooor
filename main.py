@@ -187,7 +187,7 @@ async def periodic_recheck():
 
         # Append a note if no transactions were executed
         if not executed:
-            full_report += "\nNo transactions were executed during this recheck."
+            full_report += "No transactions were executed during this recheck."
 
         # Send the full report
         await broadcast_message(full_report)
@@ -217,7 +217,7 @@ def format_transaction_report(result, header=None):
     # Add the standard report content
     report_lines += [
         f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",  # Bold and larger header
-        "**Pending Transactions:**\n",
+        "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
         f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status'}",
         f"{'-'*60}",  # Table separator
