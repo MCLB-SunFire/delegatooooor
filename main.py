@@ -78,9 +78,9 @@ async def execute(ctx, nonce: int):
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
 
 
-@tasks.loop(minutes=1)
+@tasks.loop(hours=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and automatically execute the lowest nonce transaction."""
+    """Periodic task to recheck transaction data and send a report."""
     try:
         print("Performing periodic recheck...")
 
@@ -93,14 +93,18 @@ async def periodic_recheck():
         transactions = fetch_recent_transactions(limit=20)
         if not transactions:
             print("No pending transactions found.")
+            await broadcast_message("Periodic Recheck: No pending transactions found.")
             return
 
         # Filter and process pending transactions
         pending_transactions = filter_and_sort_pending_transactions(transactions)
         if not pending_transactions:
             print("No executable transactions found.")
+            await broadcast_message("Periodic Recheck: No executable transactions found.")
             return
 
+        # Check if any transaction can be executed
+        executed = False
         for tx in pending_transactions:
             nonce = tx["nonce"]
             hex_data = tx.get("data", "")
@@ -116,9 +120,10 @@ async def periodic_recheck():
                     if transaction:
                         result = execute_transaction(transaction)
                         if result:
+                            executed = True
                             print(f"Transaction {nonce} executed successfully!")
 
-                            # Notify all servers where the bot is present
+                            # Notify about the executed transaction
                             await broadcast_message(
                                 f"✅ Successfully executed transaction:\n"
                                 f"- **Nonce**: {nonce}\n"
@@ -127,9 +132,20 @@ async def periodic_recheck():
                                 f"- **Transaction Hash**: {result}"
                             )
                             break  # Exit the loop after one successful execution
+
+        # If no transactions were executed, send a periodic report
+        if not executed:
+            print("No transactions were executed during this recheck.")
+            await broadcast_message(
+                f"Periodic Recheck Report:\n"
+                f"- **Staking Contract Balance**: {staking_balance} S tokens\n"
+                f"- **Pending Transactions**: {len(pending_transactions)}\n"
+                f"None were ready for execution."
+            )
+
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
-
+        await broadcast_message(f"Error during periodic recheck: {e}")
 
 async def broadcast_message(message):
     """Broadcast a message to all servers the bot is in."""
