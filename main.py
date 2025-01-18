@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from fetch_transactions import fetch_recent_transactions, filter_and_sort_pending_transactions
 from staking_contract import get_staking_balance
 from decode_hex import decode_hex_data
+from execute_transaction import fetch_transaction_by_nonce, execute_transaction  # Execution logic
 import os
 from dotenv import load_dotenv
 
@@ -61,48 +62,63 @@ async def report(ctx):
         print(f"Error: {e}")
 
 
+@bot.command(name="execute")
+async def execute(ctx, nonce: int):
+    """Manually execute a pending transaction by nonce."""
+    await ctx.send(f"Attempting to execute transaction with nonce {nonce}...")
+    transaction = fetch_transaction_by_nonce(nonce)
+    if not transaction:
+        await ctx.send(f"No transaction found for nonce {nonce}.")
+        return
+
+    result = execute_transaction(transaction)
+    if result:
+        await ctx.send(f"✅ Transaction {nonce} executed successfully! Hash: {result}")
+    else:
+        await ctx.send(f"❌ Transaction {nonce} could not be executed.")
+
+
 @tasks.loop(hours=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and post the report."""
-    # Find the first text channel the bot has access to
-    for guild in bot.guilds:
-        for channel in guild.text_channels:
-            if channel.permissions_for(guild.me).send_messages:  # Ensure the bot can send messages
-                try:
-                    print("Performing periodic recheck...")
-                    # Fetch staking contract balance
-                    staking_balance = get_staking_balance()
-                    staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+    """Periodic task to recheck transaction data and automatically execute transactions."""
+    try:
+        print("Performing periodic recheck...")
 
-                    # Fetch pending transactions
-                    transactions = fetch_recent_transactions(limit=20)
-                    if not transactions:
-                        print("No pending transactions found.")
-                        return
+        # Fetch staking contract balance
+        staking_balance = get_staking_balance()
+        staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
-                    # Format the report
-                    report = format_transaction_report({
-                        "staking_balance": staking_balance,
-                        "pending_transactions": [
-                            {
-                                "nonce": tx["nonce"],
-                                "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
-                                "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
-                                "status": (
-                                    "Ready to Execute"
-                                    if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
-                                ) if tx.get("data") else None
-                            }
-                            for tx in filter_and_sort_pending_transactions(transactions)
-                        ]
-                    })
+        # Fetch pending transactions
+        transactions = fetch_recent_transactions(limit=20)
+        pending_transactions = filter_and_sort_pending_transactions(transactions)
 
-                    # Send the report to the channel
-                    await channel.send(report)
-                    return  # Stop searching after sending to one channel
-                except Exception as e:
-                    print(f"Error during periodic recheck: {e}")
-    print("No accessible text channel found to send periodic updates.")
+        for tx in pending_transactions:
+            nonce = tx["nonce"]
+            hex_data = tx.get("data", "")
+            decoded = decode_hex_data(hex_data) if hex_data else None
+
+            if decoded:
+                amount = float(decoded["amountInTokens"])
+                if staking_balance >= amount:
+                    print(f"Transaction {nonce} is ready to execute. Executing now...")
+                    # Execute the transaction
+                    transaction = fetch_transaction_by_nonce(nonce)
+                    if transaction:
+                        result = execute_transaction(transaction)
+                        if result:
+                            # Notify all channels the bot has access to
+                            for channel in bot.get_all_channels():
+                                if isinstance(channel, discord.TextChannel) and channel.permissions_for(channel.guild.me).send_messages:
+                                    await channel.send(
+                                        f"✅ Successfully executed transaction:\n"
+                                        f"- **Nonce**: {nonce}\n"
+                                        f"- **Validator ID**: {decoded['validatorId']}\n"
+                                        f"- **Amount**: {amount} S tokens\n"
+                                        f"- **Transaction Hash**: {result}"
+                                    )
+                            break  # Recheck after execution
+    except Exception as e:
+        print(f"Error during periodic recheck: {e}")
 
 
 def format_transaction_report(result):
