@@ -67,67 +67,58 @@ def is_transaction_executable(transaction):
     return True
 
 def execute_transaction(transaction):
-    """Execute a transaction using the Safe's execTransaction method."""
+    """Execute a Safe transaction using execTransaction."""
     try:
+        # Ensure the transaction has all required fields
         if not transaction:
             print("Transaction object is None.")
             return None
 
-        # Prepare the execTransaction call to the Safe contract
-        exec_transaction_data = web3.eth.contract(
-            address=Web3.to_checksum_address(SAFE_ADDRESS),
-            abi=[  # Minimal ABI for execTransaction
-                {
-                    "constant": False,
-                    "inputs": [
-                        {"name": "to", "type": "address"},
-                        {"name": "value", "type": "uint256"},
-                        {"name": "data", "type": "bytes"},
-                        {"name": "operation", "type": "uint8"},
-                        {"name": "safeTxGas", "type": "uint256"},
-                        {"name": "baseGas", "type": "uint256"},
-                        {"name": "gasPrice", "type": "uint256"},
-                        {"name": "gasToken", "type": "address"},
-                        {"name": "refundReceiver", "type": "address"},
-                        {"name": "signatures", "type": "bytes"},
-                    ],
-                    "name": "execTransaction",
-                    "outputs": [],
-                    "payable": False,
-                    "stateMutability": "nonpayable",
-                    "type": "function",
-                }
-            ],
-        ).functions.execTransaction(
-            Web3.to_checksum_address(transaction["to"]),
-            int(transaction["value"]),
-            transaction["data"],
-            transaction["operation"],
-            transaction["safeTxGas"],
-            transaction["baseGas"],
-            transaction["gasPrice"],
-            Web3.to_checksum_address(transaction["gasToken"]),
-            Web3.to_checksum_address(transaction["refundReceiver"]),
-            b"",  # Signatures (already included in Safe transaction)
-        )
+        if "to" not in transaction or "data" not in transaction or "value" not in transaction:
+            print(f"Transaction object is missing required fields: {transaction}")
+            return None
 
-        # Prepare and send the transaction
-        execution_tx = exec_transaction_data.build_transaction({
+        # Log transaction details
+        print(f"Executing transaction: {transaction}")
+
+        # Prepare the parameters for execTransaction
+        to = transaction["to"]
+        value = int(transaction["value"])
+        data = transaction["data"]
+        operation = transaction.get("operation", 0)  # Default to 0 if not specified
+        safeTxGas = transaction.get("safeTxGas", 0)
+        baseGas = transaction.get("baseGas", 0)
+        gasPrice = int(web3.eth.gas_price)  # Ensure gasPrice is a valid uint256
+        gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
+        refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
+        signatures = b''  # Empty signatures, as it's already signed by the Safe owners
+
+        # Call the Safe's execTransaction function
+        tx = safe_contract.functions.execTransaction(
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            signatures,
+        ).build_transaction({
             "from": account.address,
-            "gas": 350000,  # Adjust gas limit
-            "gasPrice": web3.eth.gas_price,
+            "gas": 350000,
+            "gasPrice": gasPrice,
             "nonce": web3.eth.get_transaction_count(account.address),
             "chainId": web3.eth.chain_id,
         })
 
-        print(f"Prepared transaction: {execution_tx}")
-
-        signed_tx = web3.eth.account.sign_transaction(execution_tx, PRIVATE_KEY)
+        # Sign and send the transaction
+        signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-        print(f"Transaction executed successfully. Hash: {web3.to_hex(tx_hash)}")
-        return web3.to_hex(tx_hash)
-
+        print(f"Transaction executed successfully. Hash: {web3.toHex(tx_hash)}")
+        return web3.toHex(tx_hash)
     except Exception as e:
         print(f"Error executing transaction: {e}")
         return None
