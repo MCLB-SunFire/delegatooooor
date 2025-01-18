@@ -1,4 +1,4 @@
-import discord_bot
+import discord
 from main import process_transactions  # Import the transaction processing logic
 import os
 from dotenv import load_dotenv
@@ -10,9 +10,9 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Create a client instance
-intents = discord_bot.Intents.default()
+intents = discord.Intents.default()
 intents.messages = True
-client = discord_bot.Client(intents=intents)
+client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
