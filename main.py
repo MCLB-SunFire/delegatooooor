@@ -12,7 +12,7 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Initialize the Discord bot
 intents = discord.Intents.default()
-intents.messages = True
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
