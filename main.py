@@ -22,7 +22,8 @@ async def on_ready():
 
 @bot.command(name="report")
 async def report(ctx):
-    """Fetch and send a transaction report as an embed when triggered by !report."""
+    """Fetch and send a transaction report with color-coded statuses when triggered by !report."""
+    await ctx.send("Fetching transaction data...")
     try:
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
@@ -34,47 +35,46 @@ async def report(ctx):
             await ctx.send("No pending transactions found.")
             return
 
-        # Create the embed
-        embed = discord.Embed(
-            title="Transaction Report",
-            description=f"Staking Contract Balance: **{staking_balance} S tokens**",
-            color=discord.Color.blue(),  # Embed border color
-        )
-
-        # Add pending transactions to the embed
-        pending_transactions = filter_and_sort_pending_transactions(transactions)
-        if not pending_transactions:
-            embed.add_field(name="No Pending Transactions", value="All caught up!", inline=False)
-        else:
-            for tx in pending_transactions:
-                nonce = tx["nonce"]
-                hex_data = tx.get("data", "")
-                decoded = decode_hex_data(hex_data) if hex_data else None
-
-                if decoded:
-                    validator_id = decoded["validatorId"]
-                    amount = float(decoded["amountInTokens"])
-                    status = (
-                        "🟢 Ready to Execute"
-                        if staking_balance >= amount
-                        else "🔴 Insufficient Balance"
-                    )
-                    embed.add_field(
-                        name=f"Nonce: {nonce}",
-                        value=(
-                            f"**Validator ID:** {validator_id}\n"
-                            f"**Amount:** {amount:.1f} S tokens\n"
-                            f"**Status:** {status}"
-                        ),
-                        inline=False
-                    )
-
-        # Send the embed
-        await ctx.send(embed=embed)
-
+        # Format the report
+        report = format_transaction_report({
+            "staking_balance": staking_balance,
+            "pending_transactions": [
+                {
+                    "nonce": tx["nonce"],
+                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
+                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                    "status": (
+                        "Ready to Execute"
+                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                    ) if tx.get("data") else None
+                }
+                for tx in filter_and_sort_pending_transactions(transactions)
+            ]
+        })
+        await ctx.send(report)
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
         print(f"Error: {e}")
+
+def format_transaction_report(result):
+    """Format the transaction report for Discord in a table-like structure with diff syntax."""
+    report_lines = [
+        f"Staking Contract Balance: {result['staking_balance']} S tokens\n",
+        "**Pending Transactions:**\n",
+        "```diff",  # Use Markdown code block with 'diff' syntax
+        f"{'Nonce':<8} {'Validator ID':<15} {'Amount':<20} {'Status'}",
+        f"{'-'*55}",
+    ]
+    for tx in result['pending_transactions']:
+        status = (
+            f"+ Ready to Execute" if tx['status'] == "Ready to Execute"
+            else f"- Insufficient Balance"
+        )
+        report_lines.append(
+            f"{tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<20} {status}"
+        )
+    report_lines.append("```")  # Close the code block
+    return "\n".join(report_lines)
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
