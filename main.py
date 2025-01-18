@@ -77,7 +77,7 @@ async def execute(ctx, nonce: int):
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
 
-@tasks.loop(minutes=1)
+@tasks.loop(hours=1)
 async def periodic_recheck():
     """Periodic task to recheck transaction data and send a detailed report."""
     try:
@@ -135,7 +135,7 @@ async def periodic_recheck():
         # If no transactions were executed, send the full report
         if not executed:
             print("No transactions were executed during this recheck.")
-            # Prepare the same table-style report as the !report command
+            # Prepare the same table-style report as the !report command with a header
             full_report = format_transaction_report({
                 "staking_balance": staking_balance,
                 "pending_transactions": [
@@ -150,7 +150,7 @@ async def periodic_recheck():
                     }
                     for tx in pending_transactions
                 ]
-            })
+            }, header="Periodic Recheck Report")
             await broadcast_message(full_report)
 
     except Exception as e:
@@ -167,10 +167,16 @@ async def broadcast_message(message):
                 except Exception as send_error:
                     print(f"Error sending message to channel {channel.name}: {send_error}")
 
-
-def format_transaction_report(result):
+def format_transaction_report(result, header=None):
     """Format the transaction report for Discord with color-coded statuses."""
-    report_lines = [
+    report_lines = []
+
+    # Add a custom header if provided
+    if header:
+        report_lines.append(f"### {header} ###\n")
+
+    # Add the standard report content
+    report_lines += [
         f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**\n",
         "```diff",  # Use Markdown code block with 'diff' syntax
@@ -185,7 +191,6 @@ def format_transaction_report(result):
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
-
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
