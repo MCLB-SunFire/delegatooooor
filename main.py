@@ -78,7 +78,7 @@ async def execute(ctx, nonce: int):
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
 
 
-@tasks.loop(hours=1)
+@tasks.loop(minutes=1)
 async def periodic_recheck():
     """Periodic task to recheck transaction data and send a report."""
     try:
