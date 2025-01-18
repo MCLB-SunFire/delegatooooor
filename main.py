@@ -139,46 +139,58 @@ async def periodic_recheck():
             await broadcast_message("Periodic Recheck: No pending transactions found.")
             return
 
-        # Process only the lowest nonce transaction
+        # Prepare the full report for all pending transactions
+        full_report = format_transaction_report({
+            "staking_balance": staking_balance,
+            "pending_transactions": [
+                {
+                    "nonce": tx["nonce"],
+                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
+                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                    "status": (
+                        "Ready to Execute"
+                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                    ) if tx.get("data") else None
+                }
+                for tx in pending_transactions
+            ]
+        }, header="Periodic Recheck Report")
+
+        # Check if any transaction can be executed
+        executed = False
         lowest_transaction = pending_transactions[0]
         nonce = lowest_transaction["nonce"]
         hex_data = lowest_transaction.get("data", "")
         decoded = decode_hex_data(hex_data) if hex_data else None
 
-        if not decoded:
-            print(f"Failed to decode transaction data for nonce {nonce}.")
-            await broadcast_message(f"Failed to decode transaction data for nonce {nonce}.")
-            return
+        if decoded:
+            amount = float(decoded["amountInTokens"])
+            if staking_balance >= amount:
+                print(f"Transaction {nonce} is ready to execute. Executing now...")
 
-        amount = float(decoded["amountInTokens"])
+                # Execute the transaction
+                transaction = fetch_transaction_by_nonce(nonce)
+                if transaction:
+                    result = execute_transaction(transaction)
+                    if result:
+                        executed = True
+                        print(f"Transaction {nonce} executed successfully!")
 
-        # Check if the staking contract has enough tokens
-        if staking_balance < amount:
-            print(f"Insufficient balance for transaction {nonce}. Required: {amount}, Available: {staking_balance}")
-            await broadcast_message(
-                f"Periodic Recheck Report:\n"
-                f"- Staking Contract Balance: {staking_balance} S tokens\n"
-                f"- Lowest Nonce: {nonce}\n"
-                f"- Status: Insufficient Balance\n"
-            )
-            return
+                        # Notify about the executed transaction
+                        await broadcast_message(
+                            f"✅ Successfully executed transaction:\n"
+                            f"- **Nonce**: {nonce}\n"
+                            f"- **Validator ID**: {decoded['validatorId']}\n"
+                            f"- **Amount**: {amount} S tokens\n"
+                            f"- **Transaction Hash**: {result}"
+                        )
 
-        # Execute the transaction
-        transaction = fetch_transaction_by_nonce(nonce)
-        if transaction:
-            result = execute_transaction(transaction)
-            if result:
-                print(f"Transaction {nonce} executed successfully!")
-                await broadcast_message(
-                    f"✅ Successfully executed transaction:\n"
-                    f"- **Nonce**: {nonce}\n"
-                    f"- **Validator ID**: {decoded['validatorId']}\n"
-                    f"- **Amount**: {amount} S tokens\n"
-                    f"- **Transaction Hash**: {result}"
-                )
-            else:
-                print(f"Failed to execute transaction {nonce}.")
-                await broadcast_message(f"❌ Failed to execute transaction {nonce}.")
+        # Append a note if no transactions were executed
+        if not executed:
+            full_report += "\n\nNo transactions were executed during this recheck."
+
+        # Send the full report
+        await broadcast_message(full_report)
 
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
