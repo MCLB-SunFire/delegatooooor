@@ -1,2 +1,0 @@
-bot: python discord_bot.py
-logic: python main.py
