@@ -77,10 +77,9 @@ async def execute(ctx, nonce: int):
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
 
-
 @tasks.loop(minutes=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and send a report."""
+    """Periodic task to recheck transaction data and send a detailed report."""
     try:
         print("Performing periodic recheck...")
 
@@ -133,15 +132,26 @@ async def periodic_recheck():
                             )
                             break  # Exit the loop after one successful execution
 
-        # If no transactions were executed, send a periodic report
+        # If no transactions were executed, send the full report
         if not executed:
             print("No transactions were executed during this recheck.")
-            await broadcast_message(
-                f"Periodic Recheck Report:\n"
-                f"- **Staking Contract Balance**: {staking_balance} S tokens\n"
-                f"- **Pending Transactions**: {len(pending_transactions)}\n"
-                f"None were ready for execution."
-            )
+            # Prepare the same table-style report as the !report command
+            full_report = format_transaction_report({
+                "staking_balance": staking_balance,
+                "pending_transactions": [
+                    {
+                        "nonce": tx["nonce"],
+                        "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
+                        "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                        "status": (
+                            "Ready to Execute"
+                            if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                        ) if tx.get("data") else None
+                    }
+                    for tx in pending_transactions
+                ]
+            })
+            await broadcast_message(full_report)
 
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
