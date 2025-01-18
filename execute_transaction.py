@@ -115,12 +115,23 @@ def execute_transaction(transaction):
         operation = transaction.get("operation", 0)  # Default to 0 if not specified
         safeTxGas = transaction.get("safeTxGas", 0)
         baseGas = transaction.get("baseGas", 0)
-        gasPrice = 0  # Set to 0 to match the successful transaction
+        gasPrice = int(web3.eth.gas_price)  # Ensure gasPrice is a valid uint256
         gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
         refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
-        signatures = transaction.get("signatures", b"")  # Use the signatures provided in the transaction
 
-        # Ensure signatures are properly included
+        # Process and concatenate signatures
+        if "confirmations" not in transaction or not transaction["confirmations"]:
+            print(f"No confirmations (signatures) found for transaction with nonce {transaction['nonce']}.")
+            return None
+
+        signatures = b''
+        for confirmation in transaction["confirmations"]:
+            signature = confirmation["signature"]
+            if not signature:
+                print(f"Invalid signature found: {confirmation}")
+                continue
+            signatures += bytes.fromhex(signature[2:])  # Remove '0x' prefix and convert to bytes
+
         if not signatures:
             print("No valid signatures found for this transaction.")
             return None
@@ -140,7 +151,7 @@ def execute_transaction(transaction):
         ).build_transaction({
             "from": account.address,
             "gas": 350000,
-            "gasPrice": web3.eth.gas_price,
+            "gasPrice": gasPrice,
             "nonce": web3.eth.get_transaction_count(account.address),
             "chainId": web3.eth.chain_id,
         })
