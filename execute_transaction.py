@@ -144,8 +144,8 @@ def execute_transaction(transaction):
         signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
-        print(f"Transaction executed successfully. Hash: {web3.toHex(tx_hash)}")
-        return web3.toHex(tx_hash)
+        print(f"Transaction executed successfully. Hash: {Web3.to_hex(tx_hash)}")
+        return Web3.to_hex(tx_hash)
     except Exception as e:
         print(f"Error executing transaction: {e}")
         return None
