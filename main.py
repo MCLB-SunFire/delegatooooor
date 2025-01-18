@@ -80,17 +80,26 @@ async def execute(ctx, nonce: int):
 
 @tasks.loop(minutes=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and automatically execute transactions."""
+    """Periodic task to recheck transaction data and automatically execute the lowest nonce transaction."""
     try:
         print("Performing periodic recheck...")
 
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+        print(f"Staking Contract Balance: {staking_balance} S tokens")
 
         # Fetch pending transactions
         transactions = fetch_recent_transactions(limit=20)
+        if not transactions:
+            print("No pending transactions found.")
+            return
+
+        # Filter and process pending transactions
         pending_transactions = filter_and_sort_pending_transactions(transactions)
+        if not pending_transactions:
+            print("No executable transactions found.")
+            return
 
         for tx in pending_transactions:
             nonce = tx["nonce"]
@@ -101,24 +110,36 @@ async def periodic_recheck():
                 amount = float(decoded["amountInTokens"])
                 if staking_balance >= amount:
                     print(f"Transaction {nonce} is ready to execute. Executing now...")
+
                     # Execute the transaction
                     transaction = fetch_transaction_by_nonce(nonce)
                     if transaction:
                         result = execute_transaction(transaction)
                         if result:
-                            # Notify all channels the bot has access to
-                            for channel in bot.get_all_channels():
-                                if isinstance(channel, discord.TextChannel) and channel.permissions_for(channel.guild.me).send_messages:
-                                    await channel.send(
-                                        f"✅ Successfully executed transaction:\n"
-                                        f"- **Nonce**: {nonce}\n"
-                                        f"- **Validator ID**: {decoded['validatorId']}\n"
-                                        f"- **Amount**: {amount} S tokens\n"
-                                        f"- **Transaction Hash**: {result}"
-                                    )
-                            break  # Recheck after execution
+                            print(f"Transaction {nonce} executed successfully!")
+
+                            # Notify all servers where the bot is present
+                            await broadcast_message(
+                                f"✅ Successfully executed transaction:\n"
+                                f"- **Nonce**: {nonce}\n"
+                                f"- **Validator ID**: {decoded['validatorId']}\n"
+                                f"- **Amount**: {amount} S tokens\n"
+                                f"- **Transaction Hash**: {result}"
+                            )
+                            break  # Exit the loop after one successful execution
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
+
+
+async def broadcast_message(message):
+    """Broadcast a message to all servers the bot is in."""
+    for guild in bot.guilds:
+        for channel in guild.text_channels:
+            if channel.permissions_for(channel.guild.me).send_messages:
+                try:
+                    await channel.send(message)
+                except Exception as send_error:
+                    print(f"Error sending message to channel {channel.name}: {send_error}")
 
 
 def format_transaction_report(result):
