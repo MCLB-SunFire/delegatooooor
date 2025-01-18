@@ -1,6 +1,7 @@
 import os
 import requests
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 from eth_account import Account
 from dotenv import load_dotenv
 
@@ -13,8 +14,33 @@ SAFE_ADDRESS = os.getenv("SAFE_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 SONIC_RPC_URL = os.getenv("SONIC_RPC_URL")
 
+# Define the Safe ABI (only the `execTransaction` method is needed)
+SAFE_ABI = [
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "to", "type": "address"},
+            {"name": "value", "type": "uint256"},
+            {"name": "data", "type": "bytes"},
+            {"name": "operation", "type": "uint8"},
+            {"name": "safeTxGas", "type": "uint256"},
+            {"name": "baseGas", "type": "uint256"},
+            {"name": "gasPrice", "type": "uint256"},
+            {"name": "gasToken", "type": "address"},
+            {"name": "refundReceiver", "type": "address"},
+            {"name": "signatures", "type": "bytes"},
+        ],
+        "name": "execTransaction",
+        "outputs": [{"name": "", "type": "bool"}],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function",
+    }
+]
+
 # Connect to the Sonic RPC
 web3 = Web3(Web3.HTTPProvider(SONIC_RPC_URL))
+web3.middleware_onion.inject(geth_poa_middleware, layer=0)  # Use for PoA networks
 if web3.is_connected():
     print("Connected to Sonic network")
 else:
@@ -23,6 +49,9 @@ else:
 # Load account from private key
 account = Account.from_key(PRIVATE_KEY)
 print(f"Executor Address: {account.address}")
+
+# Create the Safe contract instance
+safe_contract = web3.eth.contract(address=Web3.to_checksum_address(SAFE_ADDRESS), abi=SAFE_ABI)
 
 def fetch_transaction_by_nonce(nonce):
     """Fetch transaction details from the Safe API by nonce."""
