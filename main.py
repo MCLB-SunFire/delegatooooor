@@ -187,7 +187,7 @@ async def periodic_recheck():
 
         # Append a note if no transactions were executed
         if not executed:
-            full_report += "\n\nNo transactions were executed during this recheck."
+            full_report += "\nNo transactions were executed during this recheck."
 
         # Send the full report
         await broadcast_message(full_report)
