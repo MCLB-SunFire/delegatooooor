@@ -57,21 +57,19 @@ async def report(ctx):
         print(f"Error: {e}")
 
 def format_transaction_report(result):
-    """Format the transaction report for Discord in a table-like structure with diff syntax."""
+    """Format the transaction report for Discord with color-coded statuses."""
     report_lines = [
-        f"Staking Contract Balance: {result['staking_balance']} S tokens\n",
+        f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",
         "**Pending Transactions:**\n",
         "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'Nonce':<8} {'Validator ID':<15} {'Amount':<20} {'Status'}",
-        f"{'-'*55}",
+        f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status'}",
+        f"{'-'*60}",  # Table separator
     ]
     for tx in result['pending_transactions']:
-        status = (
-            f"+ Ready to Execute" if tx['status'] == "Ready to Execute"
-            else f"- Insufficient Balance"
-        )
+        # Add + or - at the start of the line for coloring
+        status_prefix = "+" if tx['status'] == "Ready to Execute" else "-"
         report_lines.append(
-            f"{tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<20} {status}"
+            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']}"
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
