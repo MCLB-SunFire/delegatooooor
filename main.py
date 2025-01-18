@@ -35,26 +35,42 @@ async def report(ctx):
             await ctx.send("No pending transactions found.")
             return
 
-        # Prepare the report
-        report = f"Staking Contract Balance: {staking_balance} S tokens\nPending Transactions:\n"
-        for tx in filter_and_sort_pending_transactions(transactions):
-            nonce = tx["nonce"]
-            hex_data = tx.get("data", "")
-            decoded = decode_hex_data(hex_data) if hex_data else None
-
-            if decoded:
-                validator_id = decoded["validatorId"]
-                amount = float(decoded["amountInTokens"])
-                status = (
-                    "Ready to Execute"
-                    if staking_balance >= amount
-                    else "Insufficient Balance"
-                )
-                report += f"- Nonce: {nonce}, Validator ID: {validator_id}, Amount: {amount} S tokens, Status: {status}\n"
+        # Format the report
+        report = format_transaction_report({
+            "staking_balance": staking_balance,
+            "pending_transactions": [
+                {
+                    "nonce": tx["nonce"],
+                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
+                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                    "status": (
+                        "Ready to Execute"
+                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                    ) if tx.get("data") else None
+                }
+                for tx in filter_and_sort_pending_transactions(transactions)
+            ]
+        })
         await ctx.send(report)
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
         print(f"Error: {e}")
+
+def format_transaction_report(result):
+    """Format the transaction report for Discord in a table-like structure."""
+    report_lines = [
+        f"Staking Contract Balance: {result['staking_balance']} S tokens\n",
+        "**Pending Transactions:**\n",
+        "```",  # Use Markdown code block for table formatting
+        f"{'Nonce':<8} {'Validator ID':<15} {'Amount':<20} {'Status'}",
+        f"{'-'*55}",  # Separator line
+    ]
+    for tx in result['pending_transactions']:
+        report_lines.append(
+            f"{tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<20} {tx['status']}"
+        )
+    report_lines.append("```")  # Close the code block
+    return "\n".join(report_lines)
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
