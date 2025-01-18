@@ -1,0 +1,46 @@
+# Environment files
+.env
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs and debugging files
+*.log
+*.out
+*.err
+debug.log
+
+# Virtual environment directories
+venv/
+env/
+.venv/
+.virtualenv/
+
+# Private key script or sensitive files
+key.py
+
+# IDE-specific files
+.vscode/
+.idea/
+*.swp
+
+# Operating system-specific files
+.DS_Store
+Thumbs.db
+
+# Byte-compiled and interpreter-specific files
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Node.js/npm files (if Node is used in any scripts)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
