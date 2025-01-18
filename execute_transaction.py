@@ -135,6 +135,9 @@ def execute_transaction(transaction):
         if not signatures:
             print("No valid signatures found for this transaction.")
             return None
+        
+        # Fetch the current network gas price
+        network_gas_price = web3.eth.gas_price  # Ensure this is defined before use
 
         # Call the Safe's execTransaction function
         tx = safe_contract.functions.execTransaction(
@@ -151,7 +154,7 @@ def execute_transaction(transaction):
         ).build_transaction({
             "from": account.address,
             "gas": 350000,
-            "gasPrice": gasPrice,
+            "gasPrice": network_gas_price,  # Network-level gas price for blockchain
             "nonce": web3.eth.get_transaction_count(account.address),
             "chainId": web3.eth.chain_id,
         })
