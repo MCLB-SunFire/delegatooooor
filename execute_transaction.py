@@ -115,10 +115,15 @@ def execute_transaction(transaction):
         operation = transaction.get("operation", 0)  # Default to 0 if not specified
         safeTxGas = transaction.get("safeTxGas", 0)
         baseGas = transaction.get("baseGas", 0)
-        gasPrice = int(web3.eth.gas_price)  # Ensure gasPrice is a valid uint256
+        gasPrice = 0  # Set to 0 to match the successful transaction
         gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
         refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
-        signatures = b''  # Empty signatures, as it's already signed by the Safe owners
+        signatures = transaction.get("signatures", b"")  # Use the signatures provided in the transaction
+
+        # Ensure signatures are properly included
+        if not signatures:
+            print("No valid signatures found for this transaction.")
+            return None
 
         # Call the Safe's execTransaction function
         tx = safe_contract.functions.execTransaction(
@@ -135,7 +140,7 @@ def execute_transaction(transaction):
         ).build_transaction({
             "from": account.address,
             "gas": 350000,
-            "gasPrice": gasPrice,
+            "gasPrice": web3.eth.gas_price,
             "nonce": web3.eth.get_transaction_count(account.address),
             "chainId": web3.eth.chain_id,
         })
@@ -144,8 +149,8 @@ def execute_transaction(transaction):
         signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
-        print(f"Transaction executed successfully. Hash: {Web3.to_hex(tx_hash)}")
-        return Web3.to_hex(tx_hash)
+        print(f"Transaction executed successfully. Hash: {tx_hash.hex()}")
+        return tx_hash.hex()
     except Exception as e:
         print(f"Error executing transaction: {e}")
         return None
