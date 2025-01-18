@@ -61,7 +61,7 @@ async def report(ctx):
         print(f"Error: {e}")
 
 
-@tasks.loop(minutes=1)
+@tasks.loop(hours=1)
 async def periodic_recheck():
     """Periodic task to recheck transaction data and post the report."""
     # Find the first text channel the bot has access to
