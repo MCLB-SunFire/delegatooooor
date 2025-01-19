@@ -22,6 +22,9 @@ designated_channels = {
     1056610911009386666: 1329968235004694619,  # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
 }
 
+# Counter for periodic rechecks
+recheck_counter = 0
+
 @bot.event
 async def on_ready():
     print(f"Discord bot connected as {bot.user}")
@@ -138,7 +141,8 @@ async def execute(ctx):
 
 @tasks.loop(hours=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and automatically execute the lowest nonce transaction."""
+    """Periodic task to recheck transaction data and send a report every 6 hours."""
+    global recheck_counter
     try:
         print("Performing periodic recheck...")
 
@@ -181,42 +185,69 @@ async def periodic_recheck():
         decoded = decode_hex_data(hex_data) if hex_data else None
 
         if decoded:
-            amount = float(decoded["amountInTokens"])
-            if staking_balance >= amount:
-                print(f"Transaction {nonce} is ready to execute. Executing now...")
+            while True:
+                amount = float(decoded["amountInTokens"])
+                if staking_balance >= amount:
+                    print(f"Transaction {nonce} is ready to execute. Executing now...")
 
-                # Execute the transaction
-                transaction = fetch_transaction_by_nonce(nonce)
-                if transaction:
-                    result = execute_transaction(transaction)
-                    if result:
-                        executed = True
-                        print(f"Transaction {nonce} executed successfully!")
+                    # Execute the transaction
+                    transaction = fetch_transaction_by_nonce(nonce)
+                    if transaction:
+                        result = execute_transaction(transaction)
+                        if result:
+                            executed = True
+                            print(f"Transaction {nonce} executed successfully!")
 
-                        # Notify about the executed transaction
-                        await broadcast_message(
-                            f"✅ Successfully executed transaction:\n"
-                            f"- **Nonce**: {nonce}\n"
-                            f"- **Validator ID**: {decoded['validatorId']}\n"
-                            f"- **Amount**: {amount} S tokens\n"
-                            f"- **Transaction Hash**: {result}"
-                        )
+                            # Notify about the executed transaction
+                            await broadcast_message(
+                                f"✅ Successfully executed transaction:\n"
+                                f"- **Nonce**: {nonce}\n"
+                                f"- **Validator ID**: {decoded['validatorId']}\n"
+                                f"- **Amount**: {amount} S tokens\n"
+                                f"- **Transaction Hash**: {result}"
+                            )
 
-                        # Introduce a delay before rechecking
-                        await asyncio.sleep(10)
+                            # Introduce a delay before rechecking
+                            await asyncio.sleep(10)
 
-                        # Refetch staking balance and pending transactions
-                        staking_balance = get_staking_balance()
-                        staking_balance = round(staking_balance, 1) if staking_balance else 0.0
-                        transactions = fetch_recent_transactions(limit=20)
-                        pending_transactions = filter_and_sort_pending_transactions(transactions)
+                            # Refetch staking balance and pending transactions
+                            staking_balance = get_staking_balance()
+                            staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+                            transactions = fetch_recent_transactions(limit=20)
+                            pending_transactions = filter_and_sort_pending_transactions(transactions)
+
+                            if not pending_transactions:
+                                print("No more transactions to execute.")
+                                break
+
+                            # Prepare the next transaction for evaluation
+                            lowest_transaction = pending_transactions[0]
+                            nonce = lowest_transaction["nonce"]
+                            hex_data = lowest_transaction.get("data", "")
+                            decoded = decode_hex_data(hex_data) if hex_data else None
+
+                            if not decoded:
+                                print(f"Failed to decode transaction data for nonce {nonce}.")
+                                break
+                        else:
+                            print(f"Failed to execute transaction {nonce}.")
+                            break
+                    else:
+                        print(f"Transaction {nonce} not found for execution.")
+                        break
+                else:
+                    print("Insufficient balance for the next transaction.")
+                    break
 
         # Append a note if no transactions were executed
         if not executed:
             full_report += "No transactions were executed during this recheck."
 
-        # Send the full report
-        await broadcast_message(full_report)
+        # Increment the counter and send the full report every 6 rechecks
+        recheck_counter += 1
+        if recheck_counter >= 6:
+            await broadcast_message(full_report)
+            recheck_counter = 0
 
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
