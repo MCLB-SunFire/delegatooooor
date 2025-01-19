@@ -6,6 +6,7 @@ from decode_hex import decode_hex_data
 from execute_transaction import fetch_transaction_by_nonce, execute_transaction  # Execution logic
 import os
 from dotenv import load_dotenv
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -16,6 +17,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Hardcoded channel IDs for specific servers
+designated_channels = {
+    123456789012345678: 987654321098765432,  # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
+}
 
 @bot.event
 async def on_ready():
@@ -24,6 +29,18 @@ async def on_ready():
     # Start the periodic task when the bot is ready
     periodic_recheck.start()
 
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # Check if the message is in the designated channel for the guild
+    guild_id = message.guild.id
+    if guild_id in designated_channels:
+        if message.channel.id != designated_channels[guild_id]:
+            return  # Ignore messages from non-designated channels
+
+    await bot.process_commands(message)
 
 @bot.command(name="report")
 async def report(ctx):
@@ -185,6 +202,15 @@ async def periodic_recheck():
                             f"- **Transaction Hash**: {result}"
                         )
 
+                        # Introduce a delay before rechecking
+                        await asyncio.sleep(10)
+
+                        # Refetch staking balance and pending transactions
+                        staking_balance = get_staking_balance()
+                        staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+                        transactions = fetch_recent_transactions(limit=20)
+                        pending_transactions = filter_and_sort_pending_transactions(transactions)
+
         # Append a note if no transactions were executed
         if not executed:
             full_report += "No transactions were executed during this recheck."
@@ -199,8 +225,10 @@ async def periodic_recheck():
 async def broadcast_message(message):
     """Broadcast a message to all servers the bot is in."""
     for guild in bot.guilds:
-        for channel in guild.text_channels:
-            if channel.permissions_for(channel.guild.me).send_messages:
+        if guild.id in designated_channels:
+            channel_id = designated_channels[guild.id]
+            channel = discord.utils.get(guild.text_channels, id=channel_id)
+            if channel and channel.permissions_for(guild.me).send_messages:
                 try:
                     await channel.send(message)
                 except Exception as send_error:
