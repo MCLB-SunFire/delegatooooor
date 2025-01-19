@@ -155,10 +155,28 @@ async def periodic_recheck():
         transactions = fetch_recent_transactions(limit=20)
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
+         # Log pending transactions
         if not pending_transactions:
             print("No pending transactions found.")
             await broadcast_message("Periodic Recheck: No pending transactions found.")
             return
+        else:
+            print("Pending Transactions:")
+            for tx in pending_transactions:
+                nonce = tx["nonce"]
+                amount = (
+                    float(decode_hex_data(tx["data"])["amountInTokens"])
+                    if tx.get("data")
+                    else "N/A"
+                )
+                validator_id = (
+                    decode_hex_data(tx["data"])["validatorId"]
+                    if tx.get("data")
+                    else "N/A"
+                )
+                print(
+                    f"- Nonce: {nonce}, Validator ID: {validator_id}, Amount: {amount} S tokens"
+                )
 
         # Calculate the total sum of tokens in pending transactions
         total_pending_tokens = sum(
@@ -227,7 +245,7 @@ async def periodic_recheck():
                             )
 
                             # Introduce a delay before rechecking
-                            await asyncio.sleep(10)
+                            await asyncio.sleep(60)
 
                             # Refetch staking balance and pending transactions
                             staking_balance = get_staking_balance()
