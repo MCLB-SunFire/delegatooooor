@@ -93,6 +93,29 @@ def is_transaction_executable(transaction):
         return False
     return True
 
+def collect_and_sort_signatures(transaction):
+    """Collect and sort signatures based on the owner's address."""
+    if "confirmations" not in transaction or not transaction["confirmations"]:
+        print(f"No confirmations (signatures) found for transaction with nonce {transaction['nonce']}.")
+        return None
+
+    # Sort confirmations by owner address
+    confirmations = sorted(transaction["confirmations"], key=lambda x: x["owner"].lower())
+
+    signatures = b''
+    for confirmation in confirmations:
+        signature = confirmation["signature"]
+        if not signature:
+            print(f"Invalid signature found: {confirmation}")
+            continue
+        signatures += bytes.fromhex(signature[2:])  # Remove '0x' prefix and convert to bytes
+
+    if not signatures:
+        print("No valid signatures found for this transaction.")
+        return None
+
+    return signatures
+
 def execute_transaction(transaction):
     """Execute a Safe transaction using execTransaction."""
     try:
@@ -119,25 +142,14 @@ def execute_transaction(transaction):
         gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
         refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
 
-        # Process and concatenate signatures
-        if "confirmations" not in transaction or not transaction["confirmations"]:
-            print(f"No confirmations (signatures) found for transaction with nonce {transaction['nonce']}.")
-            return None
-
-        signatures = b''
-        for confirmation in transaction["confirmations"]:
-            signature = confirmation["signature"]
-            if not signature:
-                print(f"Invalid signature found: {confirmation}")
-                continue
-            signatures += bytes.fromhex(signature[2:])  # Remove '0x' prefix and convert to bytes
-
+        # Collect and sort signatures
+        signatures = collect_and_sort_signatures(transaction)
         if not signatures:
-            print("No valid signatures found for this transaction.")
+            print("No valid signatures available.")
             return None
-        
+
         # Fetch the current network gas price
-        network_gas_price = web3.eth.gas_price  # Ensure this is defined before use
+        network_gas_price = web3.eth.gas_price
 
         # Call the Safe's execTransaction function
         tx = safe_contract.functions.execTransaction(
