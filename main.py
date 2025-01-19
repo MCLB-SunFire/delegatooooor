@@ -160,6 +160,24 @@ async def periodic_recheck():
             await broadcast_message("Periodic Recheck: No pending transactions found.")
             return
 
+        # Calculate the total sum of tokens in pending transactions
+        total_pending_tokens = sum(
+            float(decode_hex_data(tx["data"])["amountInTokens"]) for tx in pending_transactions if tx.get("data")
+        )
+
+        # Subtract the staking contract balance from the total pending tokens
+        total_available_tokens = total_pending_tokens - staking_balance
+        print(f"Total Available Tokens (Pending - Staking Contract): {total_available_tokens} S tokens")
+
+        # Check if total available tokens are below 1 million
+        if total_available_tokens < 1_000_000:
+            warning_message = (
+                f"⚠️ Warning: The total available tokens (pending - staking contract balance) have dropped below 1 million.\n"
+                f"Current Total: {total_available_tokens} S tokens\n"
+                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
+            )
+            await broadcast_message(warning_message)
+
         # Prepare the full report for all pending transactions
         full_report = format_transaction_report({
             "staking_balance": staking_balance,
