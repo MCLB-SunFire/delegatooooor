@@ -169,15 +169,6 @@ async def periodic_recheck():
         total_available_tokens = total_pending_tokens - staking_balance
         print(f"Total Available Tokens (Pending - Staking Contract): {total_available_tokens} S tokens")
 
-        # Check if total available tokens are below 1 million
-        if total_available_tokens < 1_000_000:
-            warning_message = (
-                f"⚠️ Warning: The total available tokens (pending - staking contract balance) have dropped below 1 million.\n"
-                f"Current Total: {total_available_tokens} S tokens\n"
-                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
-            )
-            await broadcast_message(warning_message)
-
         # Prepare the full report for all pending transactions
         full_report = format_transaction_report({
             "staking_balance": staking_balance,
@@ -194,6 +185,16 @@ async def periodic_recheck():
                 for tx in pending_transactions
             ]
         }, header="Periodic Recheck Report")
+
+        # Check if total available tokens are below 1 million and append to the report
+        if total_available_tokens < 1_000_000:
+            warning_message = (
+                f"⚠️ **Warning:** The total available tokens (pending - staking contract balance) "
+                f"have dropped below 1 million.\n"
+                f"**Current Total:** {total_available_tokens} S tokens\n"
+                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
+            )
+            full_report += f"\n\n{warning_message}"
 
         # Check if any transaction can be executed
         executed = False
