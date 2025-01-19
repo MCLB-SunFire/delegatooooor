@@ -183,8 +183,10 @@ async def periodic_recheck():
             float(decode_hex_data(tx["data"])["amountInTokens"]) for tx in pending_transactions if tx.get("data")
         )
 
-        # Subtract the staking contract balance from the total pending tokens
+        # Convert staking_balance to float if necessary and calculate total available tokens
+        staking_balance = float(staking_balance)
         total_available_tokens = total_pending_tokens - staking_balance
+
         print(f"Total Available Tokens (Pending - Staking Contract): {total_available_tokens} S tokens")
 
         # Prepare the full report for all pending transactions
