@@ -19,7 +19,14 @@ def fetch_recent_transactions(limit=20):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        return response.json()['results']
+        results = response.json()['results']
+
+        # Add signature counts to each transaction
+        for tx in results:
+            tx["signature_count"] = len(tx.get("confirmations", []))
+            tx["confirmations_required"] = tx.get("confirmationsRequired", 0)
+
+        return results
     except requests.exceptions.RequestException as e:
         print(f"Error fetching transactions: {e}")
         return []
@@ -44,7 +51,7 @@ def main():
     if pending_transactions:
         print(f"Found {len(pending_transactions)} pending transactions.")
         for tx in pending_transactions:
-            print(f"Nonce: {tx['nonce']}, Executed: {tx['isExecuted']}")
+            print(f"Nonce: {tx['nonce']}, Signatures: {tx['signature_count']}/{tx['confirmations_required']}, Executed: {tx['isExecuted']}")
     else:
         print("No pending transactions found.")
 
