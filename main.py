@@ -69,8 +69,12 @@ async def report(ctx):
                     "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
                     "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
                     "status": (
-                        "Ready to Execute"
-                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                        f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
+                        if tx['signature_count'] < tx['confirmations_required']
+                        else (
+                            "Ready to Execute"
+                            if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                        )
                     ) if tx.get("data") else None
                 }
                 for tx in filter_and_sort_pending_transactions(transactions)
@@ -155,7 +159,7 @@ async def periodic_recheck():
         transactions = fetch_recent_transactions(limit=20)
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
-         # Log pending transactions
+        # Log pending transactions
         if not pending_transactions:
             print("No pending transactions found.")
             await broadcast_message("Periodic Recheck: No pending transactions found.")
@@ -174,8 +178,17 @@ async def periodic_recheck():
                     if tx.get("data")
                     else "N/A"
                 )
+                status = (
+                    f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
+                    if tx['signature_count'] < tx['confirmations_required']
+                    else (
+                        "Ready to Execute"
+                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
+                        else "Insufficient Balance"
+                    )
+                )
                 print(
-                    f"- Nonce: {nonce}, Validator ID: {validator_id}, Amount: {amount} S tokens"
+                    f"- Nonce: {nonce}, Status: {status}, Validator ID: {validator_id}, Amount: {amount} S tokens"
                 )
 
         # Calculate the total sum of tokens in pending transactions
@@ -198,8 +211,13 @@ async def periodic_recheck():
                     "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
                     "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
                     "status": (
-                        "Ready to Execute"
-                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
+                        f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
+                        if tx['signature_count'] < tx['confirmations_required']
+                        else (
+                            "Ready to Execute"
+                            if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
+                            else "Insufficient Balance"
+                        )
                     ) if tx.get("data") else None
                 }
                 for tx in pending_transactions
@@ -317,8 +335,14 @@ def format_transaction_report(result, header=None):
         f"{'-'*60}",  # Table separator
     ]
     for tx in result['pending_transactions']:
-        # Add + or - at the start of the line for coloring
-        status_prefix = "+" if tx['status'] == "Ready to Execute" else "-"
+        # Determine the prefix based on status
+        if "Signatures Needed" in tx['status']:
+            status_prefix = "-"  # Red highlight for missing signatures
+        elif tx['status'] == "Insufficient Balance":
+            status_prefix = "-"  # Red highlight for insufficient balance
+        else:
+            status_prefix = "+"  # Green highlight for ready to execute
+
         report_lines.append(
             f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']}"
         )
