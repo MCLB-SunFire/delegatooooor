@@ -336,13 +336,16 @@ def format_transaction_report(result, header=None):
     ]
     for tx in result['pending_transactions']:
         # Determine the prefix based on status
-        if "Signatures Needed" in tx['status']:
+        if tx['status'].startswith("Signatures Needed"):
             status_prefix = "-"  # Red highlight for missing signatures
         elif tx['status'] == "Insufficient Balance":
             status_prefix = "-"  # Red highlight for insufficient balance
-        else:
+        elif tx['status'] == "Ready to Execute":
             status_prefix = "+"  # Green highlight for ready to execute
+        else:
+            status_prefix = "-"  # Default red highlight for unknown status
 
+        # Add the line to the report
         report_lines.append(
             f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']}"
         )
