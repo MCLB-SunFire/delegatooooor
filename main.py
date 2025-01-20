@@ -278,10 +278,6 @@ async def periodic_recheck():
                     print("Insufficient balance for the next transaction.")
                     break
 
-        # Append a note if no transactions were executed
-        if not executed:
-            full_report += "No transactions were executed during this recheck."
-
         # Increment the counter and send the full report every 6 rechecks
         recheck_counter += 1
         if recheck_counter >= 6:
