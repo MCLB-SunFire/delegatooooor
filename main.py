@@ -265,10 +265,21 @@ async def periodic_recheck():
                 f"⚠️ **Warning:** The token staking headroom (total pending - staking contract balance) "
                 f"has dropped below 1 million.\n"
                 f"**Current Headroom:** {total_available_tokens} S tokens\n"
-                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
+                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions." # add more IDs linearly as needed.
             )
             full_report += f"\n\n{warning_message}"
 
+        # Check if the lowest nonce transaction is missing signatures
+        lowest_transaction = pending_transactions[0]
+        if lowest_transaction["signature_count"] < lowest_transaction["confirmations_required"]:
+            signatures_warning = (
+                f"⚠️ **Warning:** The lowest nonce transaction does not have all required signatures.\n"
+                f"**Nonce**: {lowest_transaction['nonce']}\n"
+                f"**Signatures**: {lowest_transaction['signature_count']}/{lowest_transaction['confirmations_required']}\n"
+                f"<@771222144780206100>, <@538717564067381249> please address this issue." # add more IDs linearly as needed.
+            )
+            full_report += f"\n\n{signatures_warning}"
+    
         # Check if any transaction can be executed
         executed = False
         lowest_transaction = pending_transactions[0]
