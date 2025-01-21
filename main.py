@@ -100,28 +100,51 @@ async def execute(ctx):
 
     if not pending_transactions:
         await ctx.send("❌ No pending transactions found.")
+        print("No pending transactions found.")
         return
 
     # Get the lowest nonce transaction
     lowest_transaction = pending_transactions[0]
     nonce = lowest_transaction["nonce"]
+    signature_count = lowest_transaction["signature_count"]
+    confirmations_required = lowest_transaction["confirmations_required"]
     hex_data = lowest_transaction.get("data", "")
     decoded = decode_hex_data(hex_data) if hex_data else None
 
     if not decoded:
         await ctx.send(f"❌ Failed to decode transaction data for nonce {nonce}.")
+        print(f"Failed to decode transaction data for nonce {nonce}.")
         return
 
     # Extract required amount from the decoded payload
     amount = float(decoded["amountInTokens"])
+
+    # Check if the transaction has enough signatures
+    if signature_count < confirmations_required:
+        await ctx.send(
+            f"❌ Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}"
+        )
+        print(
+            f"Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- Signatures: {signature_count}/{confirmations_required}"
+        )
+        return
 
     # Check if the staking contract has enough tokens
     if staking_balance < amount:
         await ctx.send(
             f"❌ Insufficient staking contract balance to execute the transaction.\n"
             f"- **Nonce**: {nonce}\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
             f"- **Required**: {amount} S tokens\n"
             f"- **Available**: {staking_balance} S tokens"
+        )
+        print(
+            f"Transaction with nonce {nonce} cannot be executed due to insufficient staking contract balance.\n"
+            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Required: {amount} S tokens\n"
+            f"- Available: {staking_balance} S tokens"
         )
         return
 
@@ -129,6 +152,7 @@ async def execute(ctx):
     transaction = fetch_transaction_by_nonce(nonce)
     if not transaction:
         await ctx.send(f"❌ No transaction found for nonce {nonce}.")
+        print(f"No transaction found for nonce {nonce}.")
         return
 
     # Execute the transaction
@@ -137,11 +161,22 @@ async def execute(ctx):
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
             f"- **Amount**: {amount} S tokens\n"
             f"- **Transaction Hash**: {result}"
         )
+        print(
+            f"Transaction {nonce} executed successfully.\n"
+            f"- Validator ID: {decoded['validatorId']}\n"
+            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Amount: {amount} S tokens\n"
+            f"- Transaction Hash: {result}"
+        )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
+        print(
+            f"Transaction {nonce} could not be executed.\n"            
+        )
 
 @tasks.loop(hours=1)
 async def periodic_recheck():
@@ -227,9 +262,9 @@ async def periodic_recheck():
         # Check if total available tokens are below 1 million and append to the report
         if total_available_tokens < 1_000_000:
             warning_message = (
-                f"⚠️ **Warning:** The total available tokens (pending - staking contract balance) "
-                f"have dropped below 1 million.\n"
-                f"**Current Total:** {total_available_tokens} S tokens\n"
+                f"⚠️ **Warning:** The token staking headroom (total pending - staking contract balance) "
+                f"has dropped below 1 million.\n"
+                f"**Current Headroom:** {total_available_tokens} S tokens\n"
                 f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
             )
             full_report += f"\n\n{warning_message}"
