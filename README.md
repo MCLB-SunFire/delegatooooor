@@ -62,4 +62,4 @@ them when conditions are met.
 **Delegatooooor** serves as a streamlined bridge between Discord and the Sonic blockchain via a Gnosis Safe, handling staking contract
 checks, transaction decoding, and execution in a single automated workflow.
 
-**Bot wallet addres** = 0xeeFd7DC3F9899FcDF6229b9f1EB5328e298E29fE
+**Bot wallet address** = 0xeeFd7DC3F9899FcDF6229b9f1EB5328e298E29fE
