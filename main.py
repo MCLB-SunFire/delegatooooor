@@ -69,7 +69,7 @@ async def report(ctx):
                     "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
                     "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
                     "status": (
-                        f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
+                        "Signatures Needed"
                         if tx['signature_count'] < tx['confirmations_required']
                         else (
                             "Ready to Execute"
@@ -246,7 +246,7 @@ async def periodic_recheck():
                     "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
                     "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
                     "status": (
-                        f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
+                        "Signatures Needed"
                         if tx['signature_count'] < tx['confirmations_required']
                         else (
                             "Ready to Execute"
