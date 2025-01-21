@@ -54,6 +54,8 @@ them when conditions are met.
 2. **Messaging**  
    - The bot sends relevant status updates or warnings to the channel as needed in a prioritized fashion with minimal message spam.
      (e.g., headroom, insufficient balance, missing signatures, successful execution, errors)
+   - The bot will PING designated discocrd IDs in the automated recheck reports when conditions exist that need attention soon before
+     they become potential process blockers.
 
 ---
 
