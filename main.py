@@ -226,7 +226,7 @@ async def periodic_recheck():
                     )
                 )
                 print(
-                    f"- Nonce: {nonce}, Status: {status}, Validator ID: {validator_id}, Amount: {amount} S tokens"
+                    f"- Nonce: {nonce}, Status: {status}, Validator ID: {validator_id}, Amount: {amount} S tokens, Signatures: {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0)}"
                 )
 
         # Calculate the total sum of tokens in pending transactions
