@@ -76,7 +76,9 @@ async def report(ctx):
                             "Ready to Execute"
                             if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
                         )
-                    ) if tx.get("data") else None
+                    ) if tx.get("data") else None,
+                    "signature_count": tx.get("signature_count", 0),  # Add signature count
+                    "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
                 }
                 for tx in filter_and_sort_pending_transactions(transactions)
             ]
@@ -254,7 +256,9 @@ async def periodic_recheck():
                             if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
                             else "Insufficient Balance"
                         )
-                    ) if tx.get("data") else None
+                    ) if tx.get("data") else None,
+                    "signature_count": tx.get("signature_count", 0),  # Add signature count
+                    "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
                 }
                 for tx in pending_transactions
             ]
@@ -378,8 +382,8 @@ def format_transaction_report(result, header=None):
         f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status'}",
-        f"{'-'*60}",  # Table separator
+        f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status':<25} {'Signatures':<10}",  # Added Signatures column
+        f"{'-'*80}",  # Adjusted table separator length
     ]
     for tx in result['pending_transactions']:
         # Determine the prefix based on status
@@ -392,9 +396,9 @@ def format_transaction_report(result, header=None):
         else:
             status_prefix = "-"  # Default red highlight for unknown status
 
-        # Add the line to the report
+        # Add the line to the report with Signatures column
         report_lines.append(
-            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']}"
+            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<10}"
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
