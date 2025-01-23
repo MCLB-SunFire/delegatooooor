@@ -26,6 +26,9 @@ designated_channels = {
 # Counter for periodic rechecks
 recheck_counter = 0
 
+# Pause flag
+paused = False
+
 @bot.event
 async def on_ready():
     print(f"Discord bot connected as {bot.user}")
@@ -45,6 +48,22 @@ async def on_message(message):
             return  # Ignore messages from non-designated channels
 
     await bot.process_commands(message)
+
+@bot.command(name="pause")
+async def pause(ctx):
+    """Pause transaction execution."""
+    global paused
+    paused = True
+    await ctx.send("⏸️ Transaction execution has been paused. Rechecks and reports will continue.")
+    print("Transaction execution paused.")
+
+@bot.command(name="resume")
+async def resume(ctx):
+    """Resume transaction execution."""
+    global paused
+    paused = False
+    await ctx.send("▶️ Transaction execution has been resumed.")
+    print("Transaction execution resumed.")
 
 @bot.command(name="report")
 async def report(ctx):
@@ -91,6 +110,12 @@ async def report(ctx):
 @bot.command(name="execute")
 async def execute(ctx):
     """Manually execute the lowest nonce transaction if possible."""
+    global paused
+    if paused:
+        await ctx.send("⏸️ The bot is currently paused. Transaction execution is disabled.")
+        print("Execution attempt blocked due to pause state.")
+        return
+
     await ctx.send("Checking for executable transactions...")
 
     # Fetch staking contract balance
@@ -292,7 +317,11 @@ async def periodic_recheck():
         hex_data = lowest_transaction.get("data", "")
         decoded = decode_hex_data(hex_data) if hex_data else None
 
-        if decoded:
+        # Respect the paused state
+        if paused:
+            print("Periodic recheck: Execution is paused. Skipping transaction execution.")
+            await broadcast_message("⏸️ Periodic recheck: Transaction execution is currently paused.")
+        elif decoded:
             while True:
                 amount = float(decoded["amountInTokens"])
                 if staking_balance >= amount:
