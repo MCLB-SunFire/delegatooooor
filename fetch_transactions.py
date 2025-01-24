@@ -61,11 +61,6 @@ def filter_and_sort_pending_transactions(transactions):
     # Sort by nonce for execution order
     filtered_transactions.sort(key=lambda tx: tx["nonce"])
 
-    # Debugging: Log the final filtered list
-    print("Filtered Transactions (Final):")
-    for tx in filtered_transactions:
-        print(f"Nonce: {tx['nonce']}, Submission Date: {tx['submissionDate']}, Execution Date: {tx.get('executionDate', 'null')}")
-
     return filtered_transactions
 
 def main():
