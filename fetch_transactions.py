@@ -32,22 +32,28 @@ def fetch_recent_transactions(limit=20):
         return []
 
 def filter_and_sort_pending_transactions(transactions):
-    """Filter for unexecuted transactions, remove duplicates by nonce, and sort by nonce."""
-    pending_transactions = [tx for tx in transactions if not tx['isExecuted']]
-    
-    # Filter out duplicate nonces, keeping only the latest submissionDate
-    unique_transactions = {}
-    for tx in pending_transactions:
-        # If a nonce is not yet in the dictionary or has an older submissionDate, replace it
-        if tx["nonce"] not in unique_transactions or \
-           tx["submissionDate"] > unique_transactions[tx["nonce"]]["submissionDate"]:
-            unique_transactions[tx["nonce"]] = tx
+    """
+    Filter transactions to ignore executed transactions and older pending transactions for the same nonce.
+    Always retain the latest pending transaction for each nonce based on submissionDate.
+    """
+    # Dictionary to store the newest pending transaction per nonce
+    latest_pending_transactions = {}
 
-    # Get the filtered transactions and sort them by nonce
-    filtered_transactions = sorted(unique_transactions.values(), key=lambda tx: tx['nonce'])
-    
-    # Debugging: Print filtered transactions
-    print("Filtered Transactions:")
+    for tx in transactions:
+        # Ignore executed transactions
+        if tx["isExecuted"]:
+            continue
+
+        # Only keep the latest pending transaction for each nonce
+        if tx["nonce"] not in latest_pending_transactions or \
+           tx["submissionDate"] > latest_pending_transactions[tx["nonce"]]["submissionDate"]:
+            latest_pending_transactions[tx["nonce"]] = tx
+
+    # Convert the dictionary back to a sorted list by nonce
+    filtered_transactions = sorted(latest_pending_transactions.values(), key=lambda tx: tx["nonce"])
+
+    # Debugging: Log the filtered transactions
+    print("Filtered Transactions (Final):")
     for tx in filtered_transactions:
         print(f"Nonce: {tx['nonce']}, Submission Date: {tx['submissionDate']}, Execution Date: {tx.get('executionDate', 'null')}")
 
