@@ -32,9 +32,22 @@ def fetch_recent_transactions(limit=20):
         return []
 
 def filter_and_sort_pending_transactions(transactions):
-    """Filter for unexecuted transactions and sort by nonce in ascending order."""
+    """
+    Filter for unexecuted transactions, resolve duplicates by nonce (keeping the most recent one by submissionDate),
+    and sort by nonce in ascending order.
+    """
+    # Filter for unexecuted transactions
     pending_transactions = [tx for tx in transactions if not tx['isExecuted']]
-    return sorted(pending_transactions, key=lambda tx: tx['nonce'])
+
+    # Resolve duplicates by nonce
+    filtered_transactions = {}
+    for tx in pending_transactions:
+        nonce = tx['nonce']
+        if nonce not in filtered_transactions or tx['submissionDate'] > filtered_transactions[nonce]['submissionDate']:
+            filtered_transactions[nonce] = tx
+
+    # Sort the filtered transactions by nonce
+    return sorted(filtered_transactions.values(), key=lambda tx: tx['nonce'])
 
 def main():
     """Main function to fetch and process transaction data."""
