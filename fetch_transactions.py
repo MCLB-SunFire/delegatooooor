@@ -39,19 +39,16 @@ def filter_and_sort_pending_transactions(transactions):
     latest_transactions = {}
 
     for tx in transactions:
-        print(f"Processing Transaction - Nonce: {tx['nonce']}, Submission Date: {tx['submissionDate']}, isExecuted: {tx['isExecuted']}")
 
         # Ignore executed transactions and remove all others with the same nonce
         if tx["isExecuted"]:
             # Mark this nonce as executed and remove any existing pending transactions for it
             latest_transactions[tx["nonce"]] = tx
-            print(f"Ignoring all pending transactions for executed Nonce: {tx['nonce']}")
             continue
 
         # Only add the newest pending transaction for each nonce
         if tx["nonce"] not in latest_transactions or \
            tx["submissionDate"] > latest_transactions[tx["nonce"]]["submissionDate"]:
-            print(f"Adding/Updating transaction - Nonce: {tx['nonce']} (submissionDate: {tx['submissionDate']})")
             latest_transactions[tx["nonce"]] = tx
         else:
             print(f"Ignoring older transaction - Nonce: {tx['nonce']} (submissionDate: {tx['submissionDate']})")
