@@ -336,6 +336,7 @@ async def periodic_recheck():
         if paused:
             print("Periodic recheck: Execution is paused.")
             full_report += "\n\n⏸️ **Note:** Transaction execution is currently paused. Rechecks and reports will continue."
+            return  # Stop further processing if paused
 
         elif decoded:
             while True:
