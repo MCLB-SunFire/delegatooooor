@@ -43,10 +43,13 @@ def filter_and_sort_pending_transactions(transactions):
 
         # Ignore executed transactions entirely
         if tx["isExecuted"]:
+            # If a nonce is executed, ensure all other pending transactions for the same nonce are ignored
+            if tx["nonce"] in latest_transactions:
+                del latest_transactions[tx["nonce"]]
             print(f"Ignoring executed transaction - Nonce: {tx['nonce']}")
             continue
 
-        # Check if the nonce is already in the latest_transactions dictionary
+        # Only add the newest pending transaction for each nonce
         if tx["nonce"] not in latest_transactions:
             # Add the transaction if it's the first one for this nonce
             print(f"Adding transaction - Nonce: {tx['nonce']} (submissionDate: {tx['submissionDate']})")
