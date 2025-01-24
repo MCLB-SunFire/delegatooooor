@@ -76,7 +76,7 @@ async def report(ctx):
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions(limit=20)
+        transactions = fetch_recent_transactions(limit=10)
         if not transactions:
             await ctx.send("No pending transactions found.")
             return
@@ -124,7 +124,7 @@ async def execute(ctx):
     staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
     # Fetch pending transactions
-    transactions = fetch_recent_transactions(limit=20)
+    transactions = fetch_recent_transactions(limit=10)
     pending_transactions = filter_and_sort_pending_transactions(transactions)
 
     if not pending_transactions:
@@ -220,7 +220,7 @@ async def periodic_recheck():
         print(f"Staking Contract Balance: {staking_balance} S tokens")
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions(limit=20)
+        transactions = fetch_recent_transactions(limit=10)
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
         # Log pending transactions
@@ -367,7 +367,7 @@ async def periodic_recheck():
                             # Refetch staking balance and pending transactions
                             staking_balance = get_staking_balance()
                             staking_balance = round(staking_balance, 1) if staking_balance else 0.0
-                            transactions = fetch_recent_transactions(limit=20)
+                            transactions = fetch_recent_transactions(limit=10)
                             pending_transactions = filter_and_sort_pending_transactions(transactions)
 
                             if not pending_transactions:

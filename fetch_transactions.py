@@ -9,7 +9,7 @@ load_dotenv()
 SAFE_ADDRESS = os.getenv("SAFE_ADDRESS")
 BASE_URL = os.getenv("BASE_URL")
 
-def fetch_recent_transactions(limit=20):
+def fetch_recent_transactions(limit=10):
     """Fetch the last `limit` transactions from the Gnosis Safe API."""
     if not SAFE_ADDRESS or not BASE_URL:
         raise ValueError("Environment variables SAFE_ADDRESS and BASE_URL must be set.")
@@ -70,8 +70,8 @@ def filter_and_sort_pending_transactions(transactions):
 
 def main():
     """Main function to fetch and process transaction data."""
-    print("Fetching the last 20 transactions...")
-    transactions = fetch_recent_transactions(limit=20)
+    print("Fetching the last 10 transactions...")
+    transactions = fetch_recent_transactions(limit=10)
     
     if not transactions:
         print("No transactions fetched.")
