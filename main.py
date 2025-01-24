@@ -320,7 +320,8 @@ async def periodic_recheck():
         # Respect the paused state
         if paused:
             print("Periodic recheck: Execution is paused. Skipping transaction execution.")
-            await broadcast_message("⏸️ Periodic recheck: Transaction execution is currently paused.")
+            if recheck_counter >= 6:
+                await broadcast_message("⏸️ Periodic recheck: Transaction execution is currently paused.")
         elif decoded:
             while True:
                 amount = float(decoded["amountInTokens"])
