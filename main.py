@@ -317,11 +317,11 @@ async def periodic_recheck():
         hex_data = lowest_transaction.get("data", "")
         decoded = decode_hex_data(hex_data) if hex_data else None
 
-        # Respect the paused state
+        # Add paused state message to the report
         if paused:
-            print("Periodic recheck: Execution is paused. Skipping transaction execution.")
-            if recheck_counter >= 6:
-                await broadcast_message("⏸️ Periodic recheck: Transaction execution is currently paused.")
+            print("Periodic recheck: Execution is paused.")
+            full_report += "\n\n⏸️ **Note:** Transaction execution is currently paused. Rechecks and reports will continue."
+
         elif decoded:
             while True:
                 amount = float(decoded["amountInTokens"])
