@@ -394,7 +394,7 @@ async def periodic_recheck():
 
         # Increment the counter and send the full report every 6 rechecks
         recheck_counter += 1
-        if recheck_counter >= 1:
+        if recheck_counter >= 6:
             await broadcast_message(full_report)
             recheck_counter = 0
 
