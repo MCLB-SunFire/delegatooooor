@@ -299,16 +299,31 @@ async def periodic_recheck():
             )
             full_report += f"\n\n{warning_message}"
 
-        # Check if the lowest nonce transaction is missing signatures
-        lowest_transaction = pending_transactions[0]
-        if lowest_transaction["signature_count"] < lowest_transaction["confirmations_required"]:
-            signatures_warning = (
-                f"⚠️ **Warning:** The lowest nonce transaction does not have all required signatures.\n"
-                f"**Nonce**: {lowest_transaction['nonce']}\n"
-                f"**Signatures**: {lowest_transaction['signature_count']}/{lowest_transaction['confirmations_required']}\n"
-                f"<@771222144780206100>, <@538717564067381249> please address this issue." # add more IDs linearly as needed.
-            )
-            full_report += f"\n\n{signatures_warning}"
+        # Check if any transaction is missing signatures
+        signer_discord_map = {
+            "0x69503B52764138e906C883eD6ef4Cac939eb998C": 892276475045249064,
+            "0xa01Bfd7F1Be1ccF81A02CF7D722c30bDCc029718": 258369063124860928,
+            "0xB3B1B2d1C9745E98e93F21DC2e4D816DA8a2440c": 538717564067381249,
+            "0xf05Ea14723d6501AfEeA3bcFF8c36e375f3a7129": 771222144780206100
+        }
+        missing_signatures = {}
+
+        for tx in pending_transactions:
+            if tx["signature_count"] < tx["confirmations_required"]:
+                signed_addresses = {conf["owner"] for conf in tx["confirmations"]}
+                for address, discord_id in signer_discord_map.items():
+                    if address not in signed_addresses:
+                        if discord_id not in missing_signatures:
+                            missing_signatures[discord_id] = []
+                        missing_signatures[discord_id].append(tx["nonce"])
+
+        if missing_signatures:
+            for discord_id, nonces in missing_signatures.items():
+                signature_warning = (
+                    f"⚠️ **Warning:** Transactions with the following nonces are missing signatures: {', '.join(map(str, nonces))}. "
+                    f"<@{discord_id}> please review and sign."
+                )
+                full_report += f"\n\n{signature_warning}"
     
         # Check if any transaction can be executed
         executed = False
