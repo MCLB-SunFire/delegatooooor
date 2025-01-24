@@ -33,26 +33,34 @@ def fetch_recent_transactions(limit=20):
 
 def filter_and_sort_pending_transactions(transactions):
     """
-    Filter transactions to ignore executed transactions and older pending transactions for the same nonce.
-    Always retain the latest pending transaction for each nonce based on submissionDate.
+    Filter transactions to exclude executed transactions and older pending transactions for the same nonce.
+    Retain only the latest pending transaction for each nonce based on submissionDate.
     """
-    # Dictionary to store the newest pending transaction per nonce
     latest_pending_transactions = {}
 
     for tx in transactions:
-        # Ignore executed transactions
+        # Debug: Log each transaction being processed
+        print(f"Processing Transaction - Nonce: {tx['nonce']}, Submission Date: {tx['submissionDate']}, isExecuted: {tx['isExecuted']}")
+
+        # Skip executed transactions
         if tx["isExecuted"]:
+            print(f"Ignoring executed transaction - Nonce: {tx['nonce']}")
             continue
 
-        # Only keep the latest pending transaction for each nonce
-        if tx["nonce"] not in latest_pending_transactions or \
-           tx["submissionDate"] > latest_pending_transactions[tx["nonce"]]["submissionDate"]:
+        # Retain the latest pending transaction for each nonce
+        if (
+            tx["nonce"] not in latest_pending_transactions
+            or tx["submissionDate"] > latest_pending_transactions[tx["nonce"]]["submissionDate"]
+        ):
+            print(f"Keeping transaction - Nonce: {tx['nonce']} (submissionDate: {tx['submissionDate']})")
             latest_pending_transactions[tx["nonce"]] = tx
+        else:
+            print(f"Ignoring older transaction - Nonce: {tx['nonce']} (submissionDate: {tx['submissionDate']})")
 
-    # Convert the dictionary back to a sorted list by nonce
+    # Sort filtered transactions by nonce
     filtered_transactions = sorted(latest_pending_transactions.values(), key=lambda tx: tx["nonce"])
 
-    # Debugging: Log the filtered transactions
+    # Debug: Log the final filtered list
     print("Filtered Transactions (Final):")
     for tx in filtered_transactions:
         print(f"Nonce: {tx['nonce']}, Submission Date: {tx['submissionDate']}, Execution Date: {tx.get('executionDate', 'null')}")
