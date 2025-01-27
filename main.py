@@ -393,9 +393,9 @@ async def periodic_recheck():
                     print("Insufficient balance for the next transaction.")
                     break
 
-        # Increment the counter and send the full report every 6 rechecks
+        # Increment the counter and send the full report every 12 rechecks
         recheck_counter += 1
-        if recheck_counter >= 6:
+        if recheck_counter >= 12:
             await broadcast_message(full_report)
             recheck_counter = 0
 
