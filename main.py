@@ -20,6 +20,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Hardcoded channel IDs for specific servers
 designated_channels = {
     1056610911009386666: 1329968235004694619,
+    885764705526882335: 911280330567208971,
         # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
 }
 
@@ -410,7 +411,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 1:
+        if recheck_counter >= 6:
             await broadcast_message(full_report)
             recheck_counter = 0
 
