@@ -110,7 +110,7 @@ async def report(ctx):
 
 @bot.command(name="execute")
 async def execute(ctx):
-    """Manually execute the lowest nonce transaction if possible."""
+    """Execute lowest nonce. Respects pause state AND token balance."""
     if paused:
         await ctx.send("⏸️ The bot is currently paused. Transaction execution is disabled.")
         print("Execution attempt blocked due to pause state.")
@@ -301,7 +301,7 @@ async def force_execute(ctx):
 
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
-    """Execute lowest nonce, ignoring pause state and token balance."""
+    """Execute lowest nonce, ignoring pause state AND token balance."""
     await ctx.send("⚡ Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
