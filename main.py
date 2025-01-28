@@ -331,13 +331,13 @@ async def periodic_recheck():
             # Add the grouped warnings to the full report
             full_report += "\n\n" + "\n".join(signature_warning_lines)
     
-# Check if any transaction can be executed
-    if pending_transactions:
-        executed = False
-        lowest_transaction = pending_transactions[0]
-        nonce = lowest_transaction["nonce"]
-        hex_data = lowest_transaction.get("data", "")
-        decoded = decode_hex_data(hex_data) if hex_data else None
+    # Check if any transaction can be executed
+        if pending_transactions:
+            executed = False
+            lowest_transaction = pending_transactions[0]
+            nonce = lowest_transaction["nonce"]
+            hex_data = lowest_transaction.get("data", "")
+            decoded = decode_hex_data(hex_data) if hex_data else None
 
         # Add paused state message to the report
         if paused:
