@@ -20,7 +20,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Hardcoded channel IDs for specific servers
 designated_channels = {
     1056610911009386666: 1329968235004694619,
-    885764705526882335: 911280330567208971,
         # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
 }
 
