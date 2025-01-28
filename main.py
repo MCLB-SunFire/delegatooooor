@@ -226,7 +226,7 @@ async def periodic_recheck():
         # Log pending transactions
         if not pending_transactions:
             print("No pending transactions found.")
-            return
+            full_report += "\n\n⏸️ **Note:** No pending transactions found during this recheck."
         else:
             print("Pending Transactions:")
             for tx in pending_transactions:
