@@ -223,11 +223,9 @@ async def periodic_recheck():
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
         # Log pending transactions
-        no_tx_message = "\n\n⏸️ **Note:** No pending transactions found during this recheck."
-
         if not pending_transactions:
             print("No pending transactions found.")
-            full_report += no_tx_message
+            no_tx_message = "\n\n⏸️ **Note:** No pending transactions found during this recheck."
 
         else:
             print("Pending Transactions:")
