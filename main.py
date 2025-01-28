@@ -206,7 +206,7 @@ async def execute(ctx):
             f"Transaction {nonce} could not be executed.\n"            
         )
 
-@bot.command(name="godmode"
+@bot.command(name="godmode")
 async def force_execute(ctx):
     """Forcefully execute the lowest nonce transaction, ignoring the pause state."""
     await ctx.send("🔄 Yes lord. Forcibly executing the lowest nonce transaction...")
