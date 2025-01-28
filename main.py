@@ -52,7 +52,7 @@ async def on_message(message):
 
 @bot.command(name="pause")
 async def pause(ctx):
-    """Pause transaction execution."""
+    """Pause automated transaction execution."""
     global paused
     paused = True
     await ctx.send("⏸️ Transaction execution has been paused. Rechecks and reports will continue.")
@@ -60,7 +60,7 @@ async def pause(ctx):
 
 @bot.command(name="resume")
 async def resume(ctx):
-    """Resume transaction execution."""
+    """Resume automated transaction execution."""
     global paused
     paused = False
     await ctx.send("▶️ Transaction execution has been resumed.")
@@ -68,7 +68,7 @@ async def resume(ctx):
 
 @bot.command(name="report")
 async def report(ctx):
-    """Fetch and send a transaction report when triggered by !report."""
+    """Fetch and send a transaction report."""
     await ctx.send("Fetching transaction data...")
     try:
         # Fetch staking contract balance
@@ -208,7 +208,7 @@ async def execute(ctx):
 
 @bot.command(name="shikai")
 async def force_execute(ctx):
-    """Forcefully execute the lowest nonce transaction, ignoring the pause state."""
+    """Execute lowest nonce, ignoring pause state."""
     await ctx.send("🔄 Overriding pause state, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
@@ -301,7 +301,7 @@ async def force_execute(ctx):
 
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
-    """Forcefully execute the lowest nonce transaction, ignoring the pause state and staking contract balance."""
+    """Execute lowest nonce, ignoring pause state and token balance."""
     await ctx.send("⚡ Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
