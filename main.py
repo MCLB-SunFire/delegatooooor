@@ -214,6 +214,9 @@ async def periodic_recheck():
     try:
         print("Performing periodic recheck...")
 
+        # Initialize the full report
+        full_report = ""
+
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
@@ -343,7 +346,7 @@ async def periodic_recheck():
         else:
             if decoded:
                 while True:
-                    if paused:  # 🚗 Break the execution loop if pause is triggered during execution
+                    if paused:  # Break the execution loop if pause is triggered during execution
                         print("Pause detected during execution. Stopping transaction execution.")
                         break
 
@@ -368,7 +371,7 @@ async def periodic_recheck():
                                 )
 
                                 # Introduce a delay before rechecking
-                                for _ in range(60):  # 🚗 Breakable countdown
+                                for _ in range(60):  # Breakable countdown
                                     if paused:
                                         print("Pause detected during delay. Breaking out of execution cycle.")
                                         break
@@ -403,7 +406,7 @@ async def periodic_recheck():
                         print("Insufficient balance for the next transaction.")
                         break
 
-        # ✅ Periodic reports and counter increment remain outside of the execution loop!
+        # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
         if recheck_counter >= 1:
             await broadcast_message(full_report)
