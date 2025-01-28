@@ -333,6 +333,7 @@ async def periodic_recheck():
             full_report += "\n\n" + "\n".join(signature_warning_lines)
     
 # Check if any transaction can be executed
+    if pending_transactions:
         executed = False
         lowest_transaction = pending_transactions[0]
         nonce = lowest_transaction["nonce"]
