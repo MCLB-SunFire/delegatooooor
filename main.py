@@ -111,7 +111,6 @@ async def report(ctx):
 @bot.command(name="execute")
 async def execute(ctx):
     """Manually execute the lowest nonce transaction if possible."""
-    global paused
     if paused:
         await ctx.send("⏸️ The bot is currently paused. Transaction execution is disabled.")
         print("Execution attempt blocked due to pause state.")
@@ -205,6 +204,99 @@ async def execute(ctx):
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
         print(
             f"Transaction {nonce} could not be executed.\n"            
+        )
+
+@bot.command(name="godmode"
+async def force_execute(ctx):
+    """Forcefully execute the lowest nonce transaction, ignoring the pause state."""
+    await ctx.send("🔄 Yes lord. Forcibly executing the lowest nonce transaction...")
+
+    # Fetch staking contract balance
+    staking_balance = get_staking_balance()
+    staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+
+    # Fetch pending transactions
+    transactions = fetch_recent_transactions(limit=10)
+    pending_transactions = filter_and_sort_pending_transactions(transactions)
+
+    if not pending_transactions:
+        await ctx.send("❌ No pending transactions found.")
+        print("No pending transactions found.")
+        return
+
+    # Get the lowest nonce transaction
+    lowest_transaction = pending_transactions[0]
+    nonce = lowest_transaction["nonce"]
+    signature_count = lowest_transaction["signature_count"]
+    confirmations_required = lowest_transaction["confirmations_required"]
+    hex_data = lowest_transaction.get("data", "")
+    decoded = decode_hex_data(hex_data) if hex_data else None
+
+    if not decoded:
+        await ctx.send(f"❌ Failed to decode transaction data for nonce {nonce}.")
+        print(f"Failed to decode transaction data for nonce {nonce}.")
+        return
+
+    # Extract required amount from the decoded payload
+    amount = float(decoded["amountInTokens"])
+
+    # Check if the transaction has enough signatures
+    if signature_count < confirmations_required:
+        await ctx.send(
+            f"❌ Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}"
+        )
+        print(
+            f"Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- Signatures: {signature_count}/{confirmations_required}"
+        )
+        return
+
+    # Check if the staking contract has enough tokens
+    if staking_balance < amount:
+        await ctx.send(
+            f"❌ Insufficient staking contract balance to execute the transaction.\n"
+            f"- **Nonce**: {nonce}\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+            f"- **Required**: {amount} S tokens\n"
+            f"- **Available**: {staking_balance} S tokens"
+        )
+        print(
+            f"Transaction with nonce {nonce} cannot be executed due to insufficient staking contract balance.\n"
+            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Required: {amount} S tokens\n"
+            f"- Available: {staking_balance} S tokens"
+        )
+        return
+
+    # Fetch the transaction details by nonce
+    transaction = fetch_transaction_by_nonce(nonce)
+    if not transaction:
+        await ctx.send(f"❌ No transaction found for nonce {nonce}.")
+        print(f"No transaction found for nonce {nonce}.")
+        return
+
+    # Execute the transaction
+    result = execute_transaction(transaction)
+    if result:
+        await ctx.send(
+            f"✅ Transaction {nonce} executed successfully!\n"
+            f"- **Validator ID**: {decoded['validatorId']}\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+            f"- **Amount**: {amount} S tokens\n"
+            f"- **Transaction Hash**: {result}"
+        )
+        print(
+            f"Transaction {nonce} executed successfully.\n"
+            f"- Validator ID: {decoded['validatorId']}\n"
+            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Amount: {amount} S tokens\n"
+            f"- Transaction Hash: {result}"
+        )
+    else:
+        await ctx.send(f"❌ Transaction {nonce} could not be executed.")
+        print(
+            f"Transaction {nonce} could not be executed.\n"
         )
 
 @tasks.loop(hours=1)
