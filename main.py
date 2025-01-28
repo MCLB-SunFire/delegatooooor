@@ -28,7 +28,7 @@ designated_channels = {
 recheck_counter = 0
 
 # Pause flag
-paused = False
+paused = True
 
 @bot.event
 async def on_ready():
@@ -317,15 +317,19 @@ async def periodic_recheck():
                             missing_signatures[discord_id] = []
                         missing_signatures[discord_id].append(tx["nonce"])
 
+        # Create a grouped warning message for all signers
         if missing_signatures:
+            # Group all warnings into a single block
+            signature_warning_lines = ["⚠️ **Warning:** The following transactions are missing signatures:"]
             for discord_id, nonces in missing_signatures.items():
-                signature_warning = (
-                    f"⚠️ **Warning:** Transactions with the following nonces are missing signatures: {', '.join(map(str, nonces))}. "
-                    f"<@{discord_id}> please review and sign."
+                signature_warning_lines.append(
+                    f"- <@{discord_id}>: Nonce: {', '.join(map(str, nonces))}"
                 )
-                full_report += f"\n\n{signature_warning}"
+
+            # Add the grouped warnings to the full report
+            full_report += "\n\n" + "\n".join(signature_warning_lines)
     
-        # Check if any transaction can be executed
+# Check if any transaction can be executed
         executed = False
         lowest_transaction = pending_transactions[0]
         nonce = lowest_transaction["nonce"]
@@ -336,64 +340,70 @@ async def periodic_recheck():
         if paused:
             print("Periodic recheck: Execution is paused.")
             full_report += "\n\n⏸️ **Note:** Transaction execution is currently paused. Rechecks and reports will continue."
-            return  # Stop further processing if paused
+        else:
+            if decoded:
+                while True:
+                    if paused:  # 🚗 Break the execution loop if pause is triggered during execution
+                        print("Pause detected during execution. Stopping transaction execution.")
+                        break
 
-        elif decoded:
-            while True:
-                amount = float(decoded["amountInTokens"])
-                if staking_balance >= amount:
-                    print(f"Transaction {nonce} is ready to execute. Executing now...")
+                    amount = float(decoded["amountInTokens"])
+                    if staking_balance >= amount:
+                        print(f"Transaction {nonce} is ready to execute. Executing now...")
 
-                    # Execute the transaction
-                    transaction = fetch_transaction_by_nonce(nonce)
-                    if transaction:
-                        result = execute_transaction(transaction)
-                        if result:
-                            executed = True
-                            print(f"Transaction {nonce} executed successfully!")
+                        # Execute the transaction
+                        transaction = fetch_transaction_by_nonce(nonce)
+                        if transaction:
+                            result = execute_transaction(transaction)
+                            if result:
+                                print(f"Transaction {nonce} executed successfully!")
 
-                            # Notify about the executed transaction
-                            await broadcast_message(
-                                f"✅ Successfully executed transaction:\n"
-                                f"- **Nonce**: {nonce}\n"
-                                f"- **Validator ID**: {decoded['validatorId']}\n"
-                                f"- **Amount**: {amount} S tokens\n"
-                                f"- **Transaction Hash**: {result}"
-                            )
+                                # Notify about the executed transaction
+                                await broadcast_message(
+                                    f"✅ Successfully executed transaction:\n"
+                                    f"- **Nonce**: {nonce}\n"
+                                    f"- **Validator ID**: {decoded['validatorId']}\n"
+                                    f"- **Amount**: {amount} S tokens\n"
+                                    f"- **Transaction Hash**: {result}"
+                                )
 
-                            # Introduce a delay before rechecking
-                            await asyncio.sleep(60)
+                                # Introduce a delay before rechecking
+                                for _ in range(60):  # 🚗 Breakable countdown
+                                    if paused:
+                                        print("Pause detected during delay. Breaking out of execution cycle.")
+                                        break
+                                    await asyncio.sleep(10)  # Sleep in 10-second intervals to allow checking pause state
 
-                            # Refetch staking balance and pending transactions
-                            staking_balance = get_staking_balance()
-                            staking_balance = round(staking_balance, 1) if staking_balance else 0.0
-                            transactions = fetch_recent_transactions(limit=10)
-                            pending_transactions = filter_and_sort_pending_transactions(transactions)
+                                # Refetch staking balance and pending transactions
+                                staking_balance = get_staking_balance()
+                                staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+                                transactions = fetch_recent_transactions(limit=10)
+                                pending_transactions = filter_and_sort_pending_transactions(transactions)
 
-                            if not pending_transactions:
-                                print("No more transactions to execute.")
-                                break
+                                if not pending_transactions:
+                                    print("No more transactions to execute.")
+                                    break
 
-                            # Prepare the next transaction for evaluation
-                            lowest_transaction = pending_transactions[0]
-                            nonce = lowest_transaction["nonce"]
-                            hex_data = lowest_transaction.get("data", "")
-                            decoded = decode_hex_data(hex_data) if hex_data else None
+                                # Prepare the next transaction for evaluation
+                                lowest_transaction = pending_transactions[0]
+                                nonce = lowest_transaction["nonce"]
+                                hex_data = lowest_transaction.get("data", "")
+                                decoded = decode_hex_data(hex_data) if hex_data else None
 
-                            if not decoded:
-                                print(f"Failed to decode transaction data for nonce {nonce}.")
+                                if not decoded:
+                                    print(f"Failed to decode transaction data for nonce {nonce}.")
+                                    break
+                            else:
+                                print(f"Failed to execute transaction {nonce}.")
                                 break
                         else:
-                            print(f"Failed to execute transaction {nonce}.")
+                            print(f"Transaction {nonce} not found for execution.")
                             break
                     else:
-                        print(f"Transaction {nonce} not found for execution.")
+                        print("Insufficient balance for the next transaction.")
                         break
-                else:
-                    print("Insufficient balance for the next transaction.")
-                    break
 
-        # Increment the counter and send the full report every 12 rechecks
+        # ✅ Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
         if recheck_counter >= 12:
             await broadcast_message(full_report)
