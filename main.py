@@ -213,9 +213,6 @@ async def periodic_recheck():
     try:
         print("Performing periodic recheck...")
 
-        # Initialize the full report
-        full_report = ""
-
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
@@ -226,9 +223,12 @@ async def periodic_recheck():
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
         # Log pending transactions
+        no_tx_message = "\n\n⏸️ **Note:** No pending transactions found during this recheck."
+
         if not pending_transactions:
             print("No pending transactions found.")
-            full_report += "\n\n⏸️ **Note:** No pending transactions found during this recheck."
+            full_report += no_tx_message
+
         else:
             print("Pending Transactions:")
             for tx in pending_transactions:
@@ -290,6 +290,10 @@ async def periodic_recheck():
                 for tx in pending_transactions
             ]
         }, header="Periodic Recheck Report")
+
+        # Append no_tx_message if there are no transactions
+        if not pending_transactions:
+            full_report += no_tx_message
 
         # Check if total available tokens are below 1 million and append to the report
         if total_available_tokens < 1_000_000:
