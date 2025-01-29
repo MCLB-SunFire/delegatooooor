@@ -15,7 +15,7 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 # Initialize the Discord bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Disables default help
 
 # Hardcoded channel IDs for specific servers
 designated_channels = {
@@ -49,6 +49,26 @@ async def on_message(message):
             return  # Ignore messages from non-designated channels
 
     await bot.process_commands(message)
+
+@bot.command(name="help")
+async def custom_help(ctx):
+    """Custom help command with a manually ordered list of commands."""
+    embed = discord.Embed(title="Available Commands", color=discord.Color.blue())
+
+    # Custom command order
+    command_order = [
+        ("report", "Fetch and send a transaction report."),
+        ("pause", "Pause automated transaction execution."),
+        ("resume", "Resume automated transaction execution."),
+        ("execute", "Execute lowest nonce. Respects pause state AND token balance."),
+        ("shikai", "Execute lowest nonce, ignores pause state."),
+        ("bankai", "Execute lowest nonce, ignores pause state AND token balance."),
+    ]
+
+    for name, description in command_order:
+        embed.add_field(name=f"!{name}", value=description, inline=False)
+
+    await ctx.send(embed=embed)
 
 @bot.command(name="pause")
 async def pause(ctx):
@@ -208,7 +228,7 @@ async def execute(ctx):
 
 @bot.command(name="shikai")
 async def force_execute(ctx):
-    """Execute lowest nonce, ignoring pause state."""
+    """Execute lowest nonce, ignores pause state."""
     await ctx.send("🔄 Overriding pause state, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
@@ -301,7 +321,7 @@ async def force_execute(ctx):
 
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
-    """Execute lowest nonce, ignoring pause state AND token balance."""
+    """Execute lowest nonce, ignores pause state AND token balance."""
     await ctx.send("⚡ Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
