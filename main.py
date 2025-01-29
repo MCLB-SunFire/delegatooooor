@@ -65,9 +65,9 @@ async def custom_help(ctx):
     embed.add_field(name="📢 \u2003!report", value="Fetch and send a transaction report.", inline=False)
     embed.add_field(name="⏸️ \u2003!pause", value="Pause automated transaction execution.", inline=False)
     embed.add_field(name="▶️ \u2003!resume", value="Resume automated transaction execution.", inline=False)
-    embed.add_field(name="⚡ \u2003!execute", value="Execute lowest nonce. Respects pause state, token balance and payload data.", inline=False)
-    embed.add_field(name="🔥 \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
-    embed.add_field(name="💣☄ \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
+    embed.add_field(name="⚔️ \u2003!execute", value="Execute lowest nonce. Respects pause state, token balance and payload data.", inline=False)
+    embed.add_field(name="⚡ \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
+    embed.add_field(name="🔥 \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
     embed.add_field(name="💀 \u2003!shukai9000", value="Ultimate execution weapon. ignores ALL checks (pause, balance, data).", inline=False)
 
     # Set the embed image
@@ -142,7 +142,7 @@ async def execute(ctx):
         print("Execution attempt blocked due to pause state.")
         return
 
-    await ctx.send("⚡ Checking for executable transactions...")
+    await ctx.send("⚔️ Checking for executable transactions...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
@@ -233,7 +233,7 @@ async def execute(ctx):
 @bot.command(name="shikai")
 async def force_execute(ctx):
     """Execute lowest nonce, ignores pause state."""
-    await ctx.send("🔥 Overriding pause state, executing the lowest nonce transaction...")
+    await ctx.send("⚡ Overriding pause state, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
@@ -324,7 +324,7 @@ async def force_execute(ctx):
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
     """Execute lowest nonce, ignores pause state AND token balance."""
-    await ctx.send("💣 Overriding pause state AND token balance, executing the lowest nonce transaction...")
+    await ctx.send("🔥 Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
