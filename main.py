@@ -54,8 +54,8 @@ async def on_message(message):
 async def custom_help(ctx):
     """Custom Help Command with Thumbnail and Embed Image"""
     embed = discord.Embed(
-        title="📜 **Command List**",
-        color=0x4B0000  # Dark blood red (adjust if needed)
+        title="📜 \u2003**Command List**",
+        color=0xD51F1D  # embed border color
     )
 
     # Set the thumbnail (Bot Avatar or Custom URL)
