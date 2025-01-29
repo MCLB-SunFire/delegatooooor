@@ -20,7 +20,6 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Di
 # Hardcoded channel IDs for specific servers
 designated_channels = {
     1056610911009386666: 1329968235004694619,
-    885764705526882335: 911280330567208971,
         # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
 }
 
@@ -66,9 +65,10 @@ async def custom_help(ctx):
     embed.add_field(name="📢 \u2003!report", value="Fetch and send a transaction report.", inline=False)
     embed.add_field(name="⏸️ \u2003!pause", value="Pause automated transaction execution.", inline=False)
     embed.add_field(name="▶️ \u2003!resume", value="Resume automated transaction execution.", inline=False)
-    embed.add_field(name="⚡ \u2003!execute", value="Execute lowest nonce. Respects pause state AND token balance.", inline=False)
+    embed.add_field(name="⚡ \u2003!execute", value="Execute lowest nonce. Respects pause state, token balance and payload data.", inline=False)
     embed.add_field(name="🔥 \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
-    embed.add_field(name="💀 \u2003!bankai", value="Execute lowest nonce, ignores pause state AND token balance.", inline=False)
+    embed.add_field(name="💥 \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
+    embed.add_field(name="💀 \u2003!shukai9000", value="Ultimate execution weapon. ignores ALL checks (pause, balance, data)", inline=False)
 
     # Set the embed image
     embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
@@ -113,8 +113,8 @@ async def report(ctx):
             "pending_transactions": [
                 {
                     "nonce": tx["nonce"],
-                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
-                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else "No Data",
+                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else "No Data",
                     "status": (
                         "Signatures Needed"
                         if tx['signature_count'] < tx['confirmations_required']
@@ -122,7 +122,7 @@ async def report(ctx):
                             "Ready to Execute"
                             if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
                         )
-                    ) if tx.get("data") else None,
+                    ) if tx.get("data") else "No Data",
                     "signature_count": tx.get("signature_count", 0),  # Add signature count
                     "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
                 }
@@ -228,9 +228,7 @@ async def execute(ctx):
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
-        print(
-            f"Transaction {nonce} could not be executed.\n"            
-        )
+        print(f"Transaction {nonce} could not be executed.\n")
 
 @bot.command(name="shikai")
 async def force_execute(ctx):
@@ -321,14 +319,12 @@ async def force_execute(ctx):
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
-        print(
-            f"Transaction {nonce} could not be executed.\n"
-        )
+        print(f"Transaction {nonce} could not be executed.\n")
 
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
     """Execute lowest nonce, ignores pause state AND token balance."""
-    await ctx.send("💀 Overriding pause state AND token balance, executing the lowest nonce transaction...")
+    await ctx.send("💥 Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
@@ -399,9 +395,92 @@ async def force_execute_no_checks(ctx):
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
-        print(
-            f"Transaction {nonce} could not be executed.\n"
+        print(f"Transaction {nonce} could not be executed.\n")
+
+@bot.command(name="shukai9000")
+async def ultimate_force_execute(ctx):
+    """Ultimate command to execute the lowest nonce, ignoring all checks except signature count."""
+    await ctx.send("💀 Unleashing ultimate power! Executing the lowest nonce transaction...")
+
+    # Fetch staking contract balance
+    staking_balance = get_staking_balance()
+    staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+
+    # Fetch pending transactions
+    transactions = fetch_recent_transactions(limit=10)
+    pending_transactions = filter_and_sort_pending_transactions(transactions)
+
+    if not pending_transactions:
+        await ctx.send("❌ No pending transactions found.")
+        print("No pending transactions found.")
+        return
+
+    # Get the lowest nonce transaction
+    lowest_transaction = pending_transactions[0]
+    nonce = lowest_transaction["nonce"]
+    signature_count = lowest_transaction["signature_count"]
+    confirmations_required = lowest_transaction["confirmations_required"]
+    hex_data = lowest_transaction.get("data", "")
+    
+    # Attempt to decode; proceed regardless of success
+    decoded = decode_hex_data(hex_data) if hex_data else None
+
+    # Check if the transaction has enough signatures
+    if signature_count < confirmations_required:
+        await ctx.send(
+            f"❌ Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- **Signatures**: {signature_count}/{confirmations_required}"
         )
+        print(
+            f"Transaction with nonce {nonce} cannot be executed due to insufficient signatures.\n"
+            f"- Signatures: {signature_count}/{confirmations_required}"
+        )
+        return
+
+    # Fetch the actual transaction details by nonce
+    transaction = fetch_transaction_by_nonce(nonce)
+    if not transaction:
+        await ctx.send(f"❌ No transaction found for nonce {nonce}.")
+        print(f"No transaction found for nonce {nonce}.")
+        return
+
+    # Execute the transaction regardless of data decode status
+    result = execute_transaction(transaction)
+    if result:
+        # Provide detailed information if decoded
+        if decoded:
+            amount = float(decoded.get("amountInTokens", 0.0))
+            validator_id = decoded.get("validatorId", "N/A")
+            await ctx.send(
+                f"✅ Transaction {nonce} executed successfully!\n"
+                f"- **Validator ID**: {validator_id}\n"
+                f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+                f"- **Amount**: {amount} S tokens\n"
+                f"- **Transaction Hash**: {result}"
+            )
+            print(
+                f"Transaction {nonce} executed successfully.\n"
+                f"- Validator ID: {validator_id}\n"
+                f"- Signatures: {signature_count}/{confirmations_required}\n"
+                f"- Amount: {amount} S tokens\n"
+                f"- Transaction Hash: {result}"
+            )
+        else:
+            await ctx.send(
+                f"✅ Transaction {nonce} executed successfully!\n"
+                f"- **No decodeable data**\n"
+                f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+                f"- **Transaction Hash**: {result}"
+            )
+            print(
+                f"Transaction {nonce} executed successfully.\n"
+                f"- No decodeable data\n"
+                f"- Signatures: {signature_count}/{confirmations_required}\n"
+                f"- Transaction Hash: {result}"
+            )
+    else:
+        await ctx.send(f"❌ Transaction {nonce} could not be executed.")
+        print(f"Transaction {nonce} could not be executed.\n")
 
 @tasks.loop(hours=1)
 async def periodic_recheck():
@@ -468,8 +547,8 @@ async def periodic_recheck():
             "pending_transactions": [
                 {
                     "nonce": tx["nonce"],
-                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else None,
-                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else None,
+                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else "No Data",
+                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else "No Data",
                     "status": (
                         "Signatures Needed"
                         if tx['signature_count'] < tx['confirmations_required']
@@ -478,7 +557,7 @@ async def periodic_recheck():
                             if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
                             else "Insufficient Balance"
                         )
-                    ) if tx.get("data") else None,
+                    ) if tx.get("data") else "No Data",
                     "signature_count": tx.get("signature_count", 0),  # Add signature count
                     "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
                 }
@@ -607,7 +686,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 6:
+        if recheck_counter >= 1:
             await broadcast_message(full_report)
             recheck_counter = 0
 
@@ -644,13 +723,17 @@ def format_transaction_report(result, header=None):
         f"{'-'*80}",  # Adjusted table separator length
     ]
     for tx in result['pending_transactions']:
+        status_value = tx['status'] or "No Data"  # Ensure status is always a string
+
         # Determine the prefix based on status
-        if tx['status'].startswith("Signatures Needed"):
+        if status_value.startswith("Signatures Needed"):
             status_prefix = "-"  # Red highlight for missing signatures
-        elif tx['status'] == "Insufficient Balance":
+        elif status_value == "Insufficient Balance":
             status_prefix = "-"  # Red highlight for insufficient balance
-        elif tx['status'] == "Ready to Execute":
+        elif status_value == "Ready to Execute":
             status_prefix = "+"  # Green highlight for ready to execute
+        elif status_value == "No Data":
+            status_prefix = "?"  # Neutral or gray highlight for missing data
         else:
             status_prefix = "-"  # Default red highlight for unknown status
 
