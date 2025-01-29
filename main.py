@@ -55,7 +55,7 @@ async def custom_help(ctx):
     """Custom Help Command with Thumbnail and Embed Image"""
     embed = discord.Embed(
         title="📜 \u2003**Command List**",
-        description="",  # smaller gap instead of a full empty field
+        description="\u200b",  # smaller gap instead of a full empty field
         color=0xD51F1D  # embed border color
     )
 
