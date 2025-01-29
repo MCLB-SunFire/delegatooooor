@@ -76,17 +76,6 @@ async def custom_help(ctx):
     # Send the embed
     await ctx.send(embed=embed)
 
-        # Wait for 5 seconds before sending the joke message
-    await asyncio.sleep(5)
-
-    # Send the joke message, pinging the specific user
-    await ctx.send(
-        "Dear <@688100869861801996> my biggest hater,\n"
-        "As you can see from the immaculately crafted embed displayed above, my current state should be sufficient to handle all of your...~~demands~~ requirements.\n"
-        "In the future, please try to use the actual command text and not attempt to abbreviate.\n"
-        "Current state must make do as further updates can not be attended for a week or two most likely."
-    )
-
 @bot.command(name="pause")
 async def pause(ctx):
     """Pause automated transaction execution."""
