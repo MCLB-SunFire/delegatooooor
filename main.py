@@ -17,10 +17,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Disables default help
 
-# Hardcoded channel IDs for specific servers
+# Hardcoded Guild ID, channel ID. # Add duplicate identical lines underneith for addiotnal guilds and channels.
 designated_channels = {
     1056610911009386666: 1329968235004694619,
-        # Replace with your server guild ID and channel ID. add duplicate identical lines underneith for addiotnal guilds and channels.
+    885764705526882335: 911280330567208971,       
 }
 
 # Counter for periodic rechecks
