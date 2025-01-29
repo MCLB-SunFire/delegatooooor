@@ -55,14 +55,12 @@ async def custom_help(ctx):
     """Custom Help Command with Thumbnail and Embed Image"""
     embed = discord.Embed(
         title="📜 \u2003**Command List**",
+        description="",  # smaller gap instead of a full empty field
         color=0xD51F1D  # embed border color
     )
 
     # Set the thumbnail (Bot Avatar or Custom URL)
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333966250770038946/vizard_sunfire.png?ex=679ad062&is=67997ee2&hm=ae490292683ea3a1c27eb94273d260751b0e3fade87f1d133235c06c876d6f51&")  # Change to your image URL
-
-    # Add a small artificial space before listing commands
-    embed.add_field(name="\u200b", value="\u200b", inline=False)
 
     # Add categorized commands in the specified order
     embed.add_field(name="📢 \u2003!Report", value="Fetch and send a transaction report.", inline=False)
