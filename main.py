@@ -54,7 +54,7 @@ async def on_message(message):
 async def custom_help(ctx):
     """Custom Help Command with Thumbnail and Embed Image"""
     embed = discord.Embed(
-        title="📜 Command List",
+        title="📜 **Command List**",
         color=0x4B0000  # Dark blood red (adjust if needed)
     )
 
@@ -62,12 +62,12 @@ async def custom_help(ctx):
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333966250770038946/vizard_sunfire.png?ex=679ad062&is=67997ee2&hm=ae490292683ea3a1c27eb94273d260751b0e3fade87f1d133235c06c876d6f51&")  # Change to your image URL
 
     # Add categorized commands in the specified order
-    embed.add_field(name="📢 !Report", value="Fetch and send a transaction report.", inline=False)
-    embed.add_field(name="⏸️ !Pause", value="Pause automated transaction execution.", inline=False)
-    embed.add_field(name="▶️ !Resume", value="Resume automated transaction execution.", inline=False)
-    embed.add_field(name="⚡ !Execute", value="Execute the lowest nonce transaction.", inline=False)
-    embed.add_field(name="🔥 !Shikai", value="Execute lowest nonce, ignoring pause state.", inline=False)
-    embed.add_field(name="💀 !Bankai", value="Execute lowest nonce, ignoring pause state **AND** token balance.", inline=False)
+    embed.add_field(name="📢 \u2003!Report", value="Fetch and send a transaction report.", inline=False)
+    embed.add_field(name="⏸️ \u2003!Pause", value="Pause automated transaction execution.", inline=False)
+    embed.add_field(name="▶️ \u2003!Resume", value="Resume automated transaction execution.", inline=False)
+    embed.add_field(name="⚡ \u2003!Execute", value="Execute lowest nonce. Respects pause state AND token balance.", inline=False)
+    embed.add_field(name="🔥 \u2003!Shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
+    embed.add_field(name="💀 \u2003!Bankai", value="Execute lowest nonce, ignores pause state AND token balance.", inline=False)
 
     # Set the embed image
     embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
@@ -80,7 +80,7 @@ async def pause(ctx):
     """Pause automated transaction execution."""
     global paused
     paused = True
-    await ctx.send("⏸️ Transaction execution has been paused. Rechecks and reports will continue.")
+    await ctx.send("⏸️ Automated ransaction execution has been paused. Rechecks and reports will continue.")
     print("Transaction execution paused.")
 
 @bot.command(name="resume")
@@ -88,13 +88,13 @@ async def resume(ctx):
     """Resume automated transaction execution."""
     global paused
     paused = False
-    await ctx.send("▶️ Transaction execution has been resumed.")
+    await ctx.send("▶️ Automated transaction execution has been resumed.")
     print("Transaction execution resumed.")
 
 @bot.command(name="report")
 async def report(ctx):
     """Fetch and send a transaction report."""
-    await ctx.send("Fetching transaction data...")
+    await ctx.send("📢 Fetching transaction data...")
     try:
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
@@ -141,7 +141,7 @@ async def execute(ctx):
         print("Execution attempt blocked due to pause state.")
         return
 
-    await ctx.send("Checking for executable transactions...")
+    await ctx.send("⚡ Checking for executable transactions...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
@@ -234,7 +234,7 @@ async def execute(ctx):
 @bot.command(name="shikai")
 async def force_execute(ctx):
     """Execute lowest nonce, ignores pause state."""
-    await ctx.send("🔄 Overriding pause state, executing the lowest nonce transaction...")
+    await ctx.send("🔥 Overriding pause state, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
@@ -327,7 +327,7 @@ async def force_execute(ctx):
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
     """Execute lowest nonce, ignores pause state AND token balance."""
-    await ctx.send("⚡ Overriding pause state AND token balance, executing the lowest nonce transaction...")
+    await ctx.send("💀 Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
