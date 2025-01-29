@@ -81,7 +81,7 @@ async def pause(ctx):
     """Pause automated transaction execution."""
     global paused
     paused = True
-    await ctx.send("⏸️ Automated ransaction execution has been paused. Rechecks and reports will continue.")
+    await ctx.send("⏸️ Automated transaction execution has been paused. Rechecks and reports will continue.")
     print("Transaction execution paused.")
 
 @bot.command(name="resume")
@@ -620,7 +620,7 @@ async def periodic_recheck():
         # Add paused state message to the report
         if paused:
             print("Periodic recheck: Execution is paused.")
-            full_report += "\n\n⏸️ **Note:** Transaction execution is currently paused. Rechecks and reports will continue."
+            full_report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
         else:
             if decoded:
                 while True:
@@ -686,7 +686,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 1:
+        if recheck_counter >= 6:
             await broadcast_message(full_report)
             recheck_counter = 0
 
