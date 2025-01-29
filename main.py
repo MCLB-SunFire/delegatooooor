@@ -54,27 +54,38 @@ async def on_message(message):
 async def custom_help(ctx):
     """Custom Help Command with Thumbnail and Embed Image"""
     embed = discord.Embed(
-        title="📜 \u2003**Command List**",
+        title="📜 \u2003**Command List**\u2003 📜",
         description="\u200b",  # smaller gap instead of a full empty field
-        color=0xD51F1D  # embed border color
+        color=0xcc1d1b  # embed border color
     )
 
     # Set the thumbnail (Bot Avatar or Custom URL)
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333966250770038946/vizard_sunfire.png?ex=679ad062&is=67997ee2&hm=ae490292683ea3a1c27eb94273d260751b0e3fade87f1d133235c06c876d6f51&")  # Change to your image URL
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1333959203638874203/1334038056927494184/better_vizard_fire.png?ex=679b1342&is=6799c1c2&hm=9df98ede7f3eaff3df9b1f79cc737814cb79c88314bb7cc61c48d9ea86592f5e&")  # Change to your image URL
 
     # Add categorized commands in the specified order
-    embed.add_field(name="📢 \u2003!Report", value="Fetch and send a transaction report.", inline=False)
-    embed.add_field(name="⏸️ \u2003!Pause", value="Pause automated transaction execution.", inline=False)
-    embed.add_field(name="▶️ \u2003!Resume", value="Resume automated transaction execution.", inline=False)
-    embed.add_field(name="⚡ \u2003!Execute", value="Execute lowest nonce. Respects pause state AND token balance.", inline=False)
-    embed.add_field(name="🔥 \u2003!Shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
-    embed.add_field(name="💀 \u2003!Bankai", value="Execute lowest nonce, ignores pause state AND token balance.", inline=False)
+    embed.add_field(name="📢 \u2003!report", value="Fetch and send a transaction report.", inline=False)
+    embed.add_field(name="⏸️ \u2003!pause", value="Pause automated transaction execution.", inline=False)
+    embed.add_field(name="▶️ \u2003!resume", value="Resume automated transaction execution.", inline=False)
+    embed.add_field(name="⚡ \u2003!execute", value="Execute lowest nonce. Respects pause state AND token balance.", inline=False)
+    embed.add_field(name="🔥 \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
+    embed.add_field(name="💀 \u2003!bankai", value="Execute lowest nonce, ignores pause state AND token balance.", inline=False)
 
     # Set the embed image
     embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
 
     # Send the embed
     await ctx.send(embed=embed)
+
+        # Wait for 5 seconds before sending the joke message
+    await asyncio.sleep(5)
+
+    # Send the joke message, pinging the specific user
+    await ctx.send(
+        "Dear <@688100869861801996> my biggest hater,\n"
+        "As you can see from the immaculately crafted embed displayed above, my current state should be sufficient to handle all of your...~~demands~~ requirements.\n"
+        "In the future, please try to use the actual command text and not attempt to abbreviate.\n"
+        "Current state must make do as further updates can not be attended for a week or two most likely."
+    )
 
 @bot.command(name="pause")
 async def pause(ctx):
