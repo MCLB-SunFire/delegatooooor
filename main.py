@@ -67,8 +67,8 @@ async def custom_help(ctx):
     embed.add_field(name="▶️ \u2003!resume", value="Resume automated transaction execution.", inline=False)
     embed.add_field(name="⚡ \u2003!execute", value="Execute lowest nonce. Respects pause state, token balance and payload data.", inline=False)
     embed.add_field(name="🔥 \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
-    embed.add_field(name="💥 \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
-    embed.add_field(name="💀 \u2003!shukai9000", value="Ultimate execution weapon. ignores ALL checks (pause, balance, data)", inline=False)
+    embed.add_field(name="💣☄ \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
+    embed.add_field(name="💀 \u2003!shukai9000", value="Ultimate execution weapon. ignores ALL checks (pause, balance, data).", inline=False)
 
     # Set the embed image
     embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
@@ -324,7 +324,7 @@ async def force_execute(ctx):
 @bot.command(name="bankai")
 async def force_execute_no_checks(ctx):
     """Execute lowest nonce, ignores pause state AND token balance."""
-    await ctx.send("💥 Overriding pause state AND token balance, executing the lowest nonce transaction...")
+    await ctx.send("💣 Overriding pause state AND token balance, executing the lowest nonce transaction...")
 
     # Fetch staking contract balance
     staking_balance = get_staking_balance()
