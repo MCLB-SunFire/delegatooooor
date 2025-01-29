@@ -52,22 +52,27 @@ async def on_message(message):
 
 @bot.command(name="help")
 async def custom_help(ctx):
-    """Custom help command with a manually ordered list of commands."""
-    embed = discord.Embed(title="Available Commands", color=discord.Color.blue())
+    """Custom Help Command with Thumbnail and Embed Image"""
+    embed = discord.Embed(
+        title="📜 Command List",
+        color=0x4B0000  # Dark blood red (adjust if needed)
+    )
 
-    # Custom command order
-    command_order = [
-        ("report", "Fetch and send a transaction report."),
-        ("pause", "Pause automated transaction execution."),
-        ("resume", "Resume automated transaction execution."),
-        ("execute", "Execute lowest nonce. Respects pause state AND token balance."),
-        ("shikai", "Execute lowest nonce, ignores pause state."),
-        ("bankai", "Execute lowest nonce, ignores pause state AND token balance."),
-    ]
+    # Set the thumbnail (Bot Avatar or Custom URL)
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333966250770038946/vizard_sunfire.png?ex=679ad062&is=67997ee2&hm=ae490292683ea3a1c27eb94273d260751b0e3fade87f1d133235c06c876d6f51&")  # Change to your image URL
 
-    for name, description in command_order:
-        embed.add_field(name=f"!{name}", value=description, inline=False)
+    # Add categorized commands in the specified order
+    embed.add_field(name="📢 !Report", value="Fetch and send a transaction report.", inline=False)
+    embed.add_field(name="⏸️ !Pause", value="Pause automated transaction execution.", inline=False)
+    embed.add_field(name="▶️ !Resume", value="Resume automated transaction execution.", inline=False)
+    embed.add_field(name="⚡ !Execute", value="Execute the lowest nonce transaction.", inline=False)
+    embed.add_field(name="🔥 !Shikai", value="Execute lowest nonce, ignoring pause state.", inline=False)
+    embed.add_field(name="💀 !Bankai", value="Execute lowest nonce, ignoring pause state **AND** token balance.", inline=False)
 
+    # Set the embed image
+    embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
+
+    # Send the embed
     await ctx.send(embed=embed)
 
 @bot.command(name="pause")
