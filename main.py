@@ -420,7 +420,11 @@ async def ultimate_force_execute(ctx):
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
     # Ensure hex_data is always bytes, never None
-    hex_data = lowest_transaction.get("data", b"") or b""
+    hex_data = lowest_transaction.get("data")
+    if hex_data is None:
+        hex_data = b""  # Ensure `data` is always bytes, never `None`
+    elif isinstance(hex_data, str):  # If it's a hex string, convert it
+        hex_data = bytes.fromhex(hex_data.lstrip("0x"))
 
     # Attempt to decode; proceed regardless of success
     decoded = decode_hex_data(hex_data) if hex_data else {}
@@ -693,7 +697,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 1:
+        if recheck_counter >= 6:
             await broadcast_message(full_report)
             recheck_counter = 0
 
