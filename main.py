@@ -506,16 +506,11 @@ async def periodic_recheck():
             print("Pending Transactions:")
             for tx in pending_transactions:
                 nonce = tx["nonce"]
-                amount = (
-                    float(decode_hex_data(tx["data"])["amountInTokens"])
-                    if tx.get("data")
-                    else "N/A"
-                )
-                validator_id = (
-                    decode_hex_data(tx["data"])["validatorId"]
-                    if tx.get("data")
-                    else "N/A"
-                )
+                # Ensure decoded data is always a dictionary to avoid NoneType errors
+                decoded = decode_hex_data(tx["data"]) if tx.get("data") else {}
+
+                amount = float(decoded.get("amountInTokens", 0.0))  # Default to 0.0 if missing
+                validator_id = decoded.get("validatorId", "N/A")  # Default to "N/A" if missing
                 status = (
                     f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
                     if tx['signature_count'] < tx['confirmations_required']
@@ -531,7 +526,8 @@ async def periodic_recheck():
 
         # Calculate the total sum of tokens in pending transactions
         total_pending_tokens = sum(
-            float(decode_hex_data(tx["data"])["amountInTokens"]) for tx in pending_transactions if tx.get("data")
+            float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0))
+            for tx in pending_transactions if tx.get("data")
         )
 
         # Convert staking_balance to float if necessary and calculate total available tokens
