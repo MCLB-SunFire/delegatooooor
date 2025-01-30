@@ -162,7 +162,7 @@ async def execute(ctx):
     nonce = lowest_transaction["nonce"]
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
-    hex_data = lowest_transaction.get("data", "")
+    hex_data = lowest_transaction.get("data", b"")
     decoded = decode_hex_data(hex_data) if hex_data else None
 
     if not decoded:
@@ -253,7 +253,7 @@ async def force_execute(ctx):
     nonce = lowest_transaction["nonce"]
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
-    hex_data = lowest_transaction.get("data", "")
+    hex_data = lowest_transaction.get("data", b"")
     decoded = decode_hex_data(hex_data) if hex_data else None
 
     if not decoded:
@@ -344,7 +344,7 @@ async def force_execute_no_checks(ctx):
     nonce = lowest_transaction["nonce"]
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
-    hex_data = lowest_transaction.get("data", "")
+    hex_data = lowest_transaction.get("data", b"")
     decoded = decode_hex_data(hex_data) if hex_data else None
 
     if not decoded:
@@ -420,7 +420,7 @@ async def ultimate_force_execute(ctx):
     nonce = lowest_transaction["nonce"]
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
-    hex_data = lowest_transaction.get("data", "")
+    hex_data = lowest_transaction.get("data", b"")
     
     # Attempt to decode; proceed regardless of success
     decoded = decode_hex_data(hex_data) if hex_data else None
@@ -614,7 +614,7 @@ async def periodic_recheck():
             executed = False
             lowest_transaction = pending_transactions[0]
             nonce = lowest_transaction["nonce"]
-            hex_data = lowest_transaction.get("data", "")
+            hex_data = lowest_transaction.get("data", b"")
             decoded = decode_hex_data(hex_data) if hex_data else None
 
         # Add paused state message to the report
@@ -668,7 +668,7 @@ async def periodic_recheck():
                                 # Prepare the next transaction for evaluation
                                 lowest_transaction = pending_transactions[0]
                                 nonce = lowest_transaction["nonce"]
-                                hex_data = lowest_transaction.get("data", "")
+                                hex_data = lowest_transaction.get("data", b"")
                                 decoded = decode_hex_data(hex_data) if hex_data else None
 
                                 if not decoded:
