@@ -132,7 +132,7 @@ async def report(ctx):
 
         # Append pause state message **only if paused**
         if paused:
-            report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
+            report += "\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
 
         await ctx.send(report)
     except Exception as e:
@@ -625,7 +625,7 @@ async def periodic_recheck():
 
             # Add the grouped warnings to the full report
             full_report += "\n\n" + "\n".join(signature_warning_lines)
-            full_report += "\n\n https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae"
+            full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
     
     # Check if any transaction can be executed
         if pending_transactions:
@@ -704,7 +704,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 1:
+        if recheck_counter >= 6:
             await broadcast_message(full_report)
             recheck_counter = 0
 
