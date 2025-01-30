@@ -506,22 +506,30 @@ async def periodic_recheck():
             print("Pending Transactions:")
             for tx in pending_transactions:
                 nonce = tx["nonce"]
-                # Ensure decoded data is always a dictionary to avoid NoneType errors
+
+                # Ensure decode_hex_data never fails due to NoneType
                 decoded = decode_hex_data(tx["data"]) if tx.get("data") else {}
 
-                amount = float(decoded.get("amountInTokens", 0.0))  # Default to 0.0 if missing
-                validator_id = decoded.get("validatorId", "N/A")  # Default to "N/A" if missing
+                if not isinstance(decoded, dict):  
+                    decoded = {}  # Force to empty dict if decoding fails
+
+                # Extract amount and validator_id safely
+                amount = float(decoded.get("amountInTokens", 0.0)) if "amountInTokens" in decoded else 0.0
+                validator_id = decoded.get("validatorId", "N/A") if "validatorId" in decoded else "N/A"
+
+                # Ensure status is always a string
                 status = (
                     f"Signatures Needed {tx['signature_count']}/{tx['confirmations_required']}"
                     if tx['signature_count'] < tx['confirmations_required']
                     else (
                         "Ready to Execute"
-                        if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
-                        else "Insufficient Balance"
+                        if staking_balance >= amount else "Insufficient Balance"
                     )
-                )
+                ) if decoded else "No Data"  # <-- Ensures status is never None
+
                 print(
-                    f"- Nonce: {nonce}, Status: {status}, Validator ID: {validator_id}, Amount: {amount} S tokens, Signatures: {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0)}"
+                    f"- Nonce: {nonce}, Status: {status}, Validator ID: {validator_id}, Amount: {amount} S tokens, "
+                    f"Signatures: {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0)}"
                 )
 
         # Calculate the total sum of tokens in pending transactions
@@ -542,8 +550,9 @@ async def periodic_recheck():
             "pending_transactions": [
                 {
                     "nonce": tx["nonce"],
-                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else "No Data",
-                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else "No Data",
+                    "validator_id": (decode_hex_data(tx["data"]) or {}).get("validatorId", "No Data"),
+                    "amount": float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0)),
+
                     "status": (
                         "Signatures Needed"
                         if tx['signature_count'] < tx['confirmations_required']
