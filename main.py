@@ -419,9 +419,8 @@ async def ultimate_force_execute(ctx):
     nonce = lowest_transaction["nonce"]
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
-    hex_data = lowest_transaction.get("data")
-    if hex_data is None:
-        hex_data = b""  # Ensures it's not None, preventing errors
+    # Ensure hex_data is always bytes, never None
+    hex_data = lowest_transaction.get("data", b"") or b""
 
     # Attempt to decode; proceed regardless of success
     decoded = decode_hex_data(hex_data) if hex_data else {}
