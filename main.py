@@ -19,8 +19,7 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Di
 
 # Hardcoded Guild ID, channel ID. # Add duplicate identical lines underneith for addiotnal guilds and channels.
 designated_channels = {
-    1056610911009386666: 1329968235004694619,
-    885764705526882335: 911280330567208971,       
+    1056610911009386666: 1329968235004694619,      
 }
 
 # Counter for periodic rechecks
@@ -163,7 +162,7 @@ async def execute(ctx):
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
     hex_data = lowest_transaction.get("data", b"")
-    decoded = decode_hex_data(hex_data) if hex_data else None
+    decoded = decode_hex_data(hex_data) if hex_data else {}
 
     if not decoded:
         await ctx.send(f"❌ Failed to decode transaction data for nonce {nonce}.")
@@ -254,7 +253,7 @@ async def force_execute(ctx):
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
     hex_data = lowest_transaction.get("data", b"")
-    decoded = decode_hex_data(hex_data) if hex_data else None
+    decoded = decode_hex_data(hex_data) if hex_data else {}
 
     if not decoded:
         await ctx.send(f"❌ Failed to decode transaction data for nonce {nonce}.")
@@ -345,7 +344,7 @@ async def force_execute_no_checks(ctx):
     signature_count = lowest_transaction["signature_count"]
     confirmations_required = lowest_transaction["confirmations_required"]
     hex_data = lowest_transaction.get("data", b"")
-    decoded = decode_hex_data(hex_data) if hex_data else None
+    decoded = decode_hex_data(hex_data) if hex_data else {}
 
     if not decoded:
         await ctx.send(f"❌ Failed to decode transaction data for nonce {nonce}.")
@@ -423,7 +422,7 @@ async def ultimate_force_execute(ctx):
     hex_data = lowest_transaction.get("data", b"")
     
     # Attempt to decode; proceed regardless of success
-    decoded = decode_hex_data(hex_data) if hex_data else None
+    decoded = decode_hex_data(hex_data) if hex_data else {}
 
     # Check if the transaction has enough signatures
     if signature_count < confirmations_required:
@@ -615,7 +614,7 @@ async def periodic_recheck():
             lowest_transaction = pending_transactions[0]
             nonce = lowest_transaction["nonce"]
             hex_data = lowest_transaction.get("data", b"")
-            decoded = decode_hex_data(hex_data) if hex_data else None
+            decoded = decode_hex_data(hex_data) if hex_data else {}
 
         # Add paused state message to the report
         if paused:
@@ -669,7 +668,7 @@ async def periodic_recheck():
                                 lowest_transaction = pending_transactions[0]
                                 nonce = lowest_transaction["nonce"]
                                 hex_data = lowest_transaction.get("data", b"")
-                                decoded = decode_hex_data(hex_data) if hex_data else None
+                                decoded = decode_hex_data(hex_data) if hex_data else {}
 
                                 if not decoded:
                                     print(f"Failed to decode transaction data for nonce {nonce}.")
@@ -686,7 +685,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 6:
+        if recheck_counter >= 1:
             await broadcast_message(full_report)
             recheck_counter = 0
 
