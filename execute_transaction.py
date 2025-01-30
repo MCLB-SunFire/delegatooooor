@@ -134,7 +134,11 @@ def execute_transaction(transaction):
         # Prepare the parameters for execTransaction
         to = transaction["to"]
         value = int(transaction["value"])
-        data = transaction["data"]
+        data = transaction.get("data", b"")  # Ensure default to empty bytes
+        if data is None:
+            data = b""  # Explicitly set None to empty bytes
+        elif isinstance(data, str):  # Convert hex string to bytes if needed
+            data = bytes.fromhex(data.lstrip("0x"))
         operation = transaction.get("operation", 0)  # Default to 0 if not specified
         safeTxGas = transaction.get("safeTxGas", 0)
         baseGas = transaction.get("baseGas", 0)
