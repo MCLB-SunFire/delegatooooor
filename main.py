@@ -219,15 +219,13 @@ async def execute(ctx):
     if result:
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"
-            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+            f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount**: {amount} S tokens\n"
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
-            f"- Validator ID: {decoded['validatorId']}\n"
-            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Validator ID: {decoded['validatorId']}\n"            
             f"- Amount: {amount} S tokens\n"
             f"- Transaction Hash: {result}"
         )
@@ -310,15 +308,13 @@ async def force_execute(ctx):
     if result:
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"
-            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+            f"- **Validator ID**: {decoded['validatorId']}\n"           
             f"- **Amount**: {amount} S tokens\n"
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
-            f"- Validator ID: {decoded['validatorId']}\n"
-            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Validator ID: {decoded['validatorId']}\n"            
             f"- Amount: {amount} S tokens\n"
             f"- Transaction Hash: {result}"
         )
@@ -384,16 +380,14 @@ async def force_execute_no_checks(ctx):
     if result:
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"
-            f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+            f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount Queued**: {amount} S tokens\n"  # Add Amount Queued
             f"- **Amount Staked**: {staking_balance} S tokens\n"  # Add Amount Staked
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
-            f"- Validator ID: {decoded['validatorId']}\n"
-            f"- Signatures: {signature_count}/{confirmations_required}\n"
+            f"- Validator ID: {decoded['validatorId']}\n"           
             f"- Amount Queued: {amount} S tokens\n"  # Add Amount Queued
             f"- Amount Staked: {staking_balance} S tokens\n"  # Add Amount Staked
             f"- Transaction Hash: {result}"
@@ -465,29 +459,25 @@ async def ultimate_force_execute(ctx):
             validator_id = decoded.get("validatorId", "N/A")
             await ctx.send(
                 f"✅ Transaction {nonce} executed successfully!\n"
-                f"- **Validator ID**: {validator_id}\n"
-                f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+                f"- **Validator ID**: {validator_id}\n"                
                 f"- **Amount**: {amount} S tokens\n"
                 f"- **Transaction Hash**: {result}"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
-                f"- Validator ID: {validator_id}\n"
-                f"- Signatures: {signature_count}/{confirmations_required}\n"
+                f"- Validator ID: {validator_id}\n"               
                 f"- Amount: {amount} S tokens\n"
                 f"- Transaction Hash: {result}"
             )
         else:
             await ctx.send(
                 f"✅ Transaction {nonce} executed successfully!\n"
-                f"- **No decodeable data**\n"
-                f"- **Signatures**: {signature_count}/{confirmations_required}\n"
+                f"- **No decodeable data**\n"               
                 f"- **Transaction Hash**: {result}"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
-                f"- No decodeable data\n"
-                f"- Signatures: {signature_count}/{confirmations_required}\n"
+                f"- No decodeable data\n"               
                 f"- Transaction Hash: {result}"
             )
     else:
