@@ -589,9 +589,9 @@ async def periodic_recheck():
         # Check if any transaction is missing signatures
         signer_discord_map = {
             "0x69503B52764138e906C883eD6ef4Cac939eb998C": 892276475045249064,
-            "0xa01Bfd7F1Be1ccF81A02CF7D722c30bDCc029718": 258369063124860928,
+            "0x693f30c37D5a0Db9258C636E93Ccf011ACd8c90c": 232514597200855040,
             "0xB3B1B2d1C9745E98e93F21DC2e4D816DA8a2440c": 538717564067381249,
-            "0xf05Ea14723d6501AfEeA3bcFF8c36e375f3a7129": 771222144780206100
+            "0xf05Ea14723d6501AfEeA3bcFF8c36e375f3a7129": 771222144780206100,
         }
         missing_signatures = {}
 
