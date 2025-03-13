@@ -143,7 +143,7 @@ async def report(ctx):
         })
 
         # Ensure deposit report results are included in the final report
-        report += f"\n\n{deposit_report_message}"
+        report += f"\n{deposit_report_message}"
 
         # Append pause state message **only if paused**
         if paused:
