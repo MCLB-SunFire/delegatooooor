@@ -147,7 +147,7 @@ async def report(ctx):
 
         # Append pause state message **only if paused**
         if paused:
-            report += "\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
+            report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
 
         await ctx.send(report)
     except Exception as e:
