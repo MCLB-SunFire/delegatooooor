@@ -131,13 +131,13 @@ def check_large_deposits():
             alert_triggered = True
             messages.append(
                 f"A deposit for {deposit_amount:,.2f} S tokens was made by {sender} at "
-                f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD} S tokens."
+                f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD:,.0f} S tokens."
             )
         # Optionally, you can add non-alert deposits to the message (or skip them)
     
     if alert_triggered:
-        message = "\n".join(messages) + "\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
+        message = "\n\n".join(messages) + "\n\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
         return True, message
     else:
-        return False, f"No deposits over {FLAG_THRESHOLD} were made in the last hour."
+        return False, f"No deposits over {FLAG_THRESHOLD:,.0f} were made in the last hour."
 
