@@ -96,7 +96,19 @@ async def resume(ctx):
 async def report(ctx):
     """Fetch and send a transaction report."""
     await ctx.send("📢 Fetching transaction data...")
+
     try:
+        # Run the deposit monitor check first
+        from deposit_monitor import check_large_deposits, FLAG_THRESHOLD
+        alert_triggered, deposit_message = check_large_deposits()
+
+        if alert_triggered:
+            global paused
+            paused = True
+            deposit_report_message = deposit_message
+        else:
+            deposit_report_message = f"No deposits over {FLAG_THRESHOLD} S tokens were made in the last hour."
+
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
@@ -104,7 +116,7 @@ async def report(ctx):
         # Fetch pending transactions
         transactions = fetch_recent_transactions(limit=10)
         if not transactions:
-            await ctx.send("No pending transactions found.")
+            await ctx.send(deposit_report_message + "\n\n📌 No pending transactions found.")
             return
 
         # Format the report
@@ -123,12 +135,15 @@ async def report(ctx):
                             if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
                         )
                     ) if tx.get("data") else "No Data",
-                    "signature_count": tx.get("signature_count", 0),  # Add signature count
-                    "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
+                    "signature_count": tx.get("signature_count", 0),
+                    "confirmations_required": tx.get("confirmations_required", 0)
                 }
                 for tx in filter_and_sort_pending_transactions(transactions)
             ]
         })
+
+        # Ensure deposit report results are included in the final report
+        report = deposit_report_message + "\n\n" + report
 
         # Append pause state message **only if paused**
         if paused:
@@ -136,7 +151,7 @@ async def report(ctx):
 
         await ctx.send(report)
     except Exception as e:
-        await ctx.send(f"An error occurred: {e}")
+        await ctx.send(f"❌ An error occurred while generating the report: {e}")
         print(f"Error: {e}")
 
 @bot.command(name="execute")
@@ -490,6 +505,20 @@ async def periodic_recheck():
     global recheck_counter
     try:
         print("Performing periodic recheck...")
+
+        # Run the deposit monitor check first
+        from deposit_monitor import check_large_deposits
+        alert_triggered, deposit_message = check_large_deposits()
+        if alert_triggered:
+            global paused
+            if not paused:  # Only change if not already paused
+                paused = True
+                await broadcast_message(deposit_message)
+                print("Deposit monitor triggered a pause due to a large deposit.")
+            else:
+                print("Deposit monitor detected large deposit while already paused.")
+            # Optionally, you can exit the periodic task early if needed:
+            return
 
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
