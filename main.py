@@ -107,7 +107,7 @@ async def report(ctx):
             paused = True
             deposit_report_message = deposit_message
         else:
-            deposit_report_message = f"No deposits over {FLAG_THRESHOLD} S tokens were made in the last hour."
+            deposit_report_message = f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were made in the last hour."
 
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
@@ -143,7 +143,7 @@ async def report(ctx):
         })
 
         # Ensure deposit report results are included in the final report
-        report = deposit_report_message + "\n\n" + report
+        report += f"\n\n{deposit_report_message}"
 
         # Append pause state message **only if paused**
         if paused:
