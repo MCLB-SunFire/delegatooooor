@@ -204,8 +204,7 @@ async def historical_report(ctx, hours: float):
     await ctx.send(f"🔍 Scanning for large deposits in the last **{hours} hours**...")
 
     from deposit_monitor import check_large_deposits_custom
-    message = check_large_deposits_custom(hours)
-
+    _, message = check_large_deposits_custom(hours)
     await ctx.send(message)
 
 @bot.command(name="execute")

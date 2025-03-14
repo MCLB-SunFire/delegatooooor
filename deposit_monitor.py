@@ -246,10 +246,8 @@ def check_large_deposits_custom(hours):
 
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
-                f"🚨 **LARGE DEPOSIT FOUND** 🚨\n"
-                f"💰 **{deposit_amount:,.2f} S tokens** deposited by **{sender}**\n"
+                f"💰 {deposit_amount:,.2f} S tokens deposited by {sender}\n"
                 f"🔗 [View Transaction]({sonicscan_tx_url}{tx_hash})\n"
-                f"------------------------------"
             )
 
     if messages:
