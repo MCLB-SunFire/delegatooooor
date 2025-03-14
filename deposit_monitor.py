@@ -141,3 +141,118 @@ def check_large_deposits():
     else:
         return False, f"No deposits over {FLAG_THRESHOLD:,.0f} were made in the last hour."
 
+def check_large_deposits_with_block(start_block=None):
+    """
+    Runs the deposit monitor check.
+    If start_block is provided, scans from that block; otherwise, defaults to a 65-minute lookback.
+    Returns a tuple: (alert_triggered, message, last_block_scanned)
+    """
+    # If no start block provided, do a full 65-minute lookback.
+    if start_block is None:
+        one_hour_ago = int(time.time()) - 3900  # 65 minutes ago
+        block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={one_hour_ago}&closest=before&apikey={API_KEY}"
+        block_response = make_request(block_time_url)
+        if not block_response:
+            return False, "Error: Could not fetch block time.", None
+        start_block = int(block_response["result"])
+    
+    # Get the latest block number
+    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_response = make_request(latest_block_url)
+    if not latest_block_response:
+        return False, "Error: Could not fetch latest block.", None
+    latest_block = int(latest_block_response["result"], 16)
+
+    # Debug log for block numbers
+    print(f"🟢 Scanning from block {start_block} to {latest_block}")
+    
+    # Fetch deposit transactions from start_block to latest_block
+    tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={start_block}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
+    tx_response = make_request(tx_url)
+    if not tx_response:
+        return False, "Error: Could not fetch deposit logs.", None
+    deposits = tx_response.get("result", [])
+    
+    # Process deposits and build the alert message; track the highest block scanned.
+    alert_triggered = False
+    messages = []
+    sonicscan_tx_url = "https://sonicscan.org/tx/"
+    last_block_scanned = start_block
+
+    for deposit in deposits:
+        tx_hash = deposit.get('transactionHash', 'N/A')
+        sender = f"0x{deposit['topics'][1][-40:]}"
+        raw_amount_assets = deposit.get("data", "0x0")[:66]
+        deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
+        deposit_amount = deposit_amount_wei / DECIMALS
+
+        # Update last_block_scanned (if blockNumber is hex, convert it)
+        deposit_block = int(deposit.get("blockNumber"), 16) if isinstance(deposit.get("blockNumber"), str) else int(deposit.get("blockNumber"))
+        last_block_scanned = max(last_block_scanned, deposit_block)
+
+        if deposit_amount >= FLAG_THRESHOLD:
+            alert_triggered = True
+            messages.append(
+                f"A deposit for {deposit_amount:,.2f} S tokens was made by {sender} at "
+                f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD:,.0f} S tokens."
+            )
+
+    # Debugging last scanned block
+    print(f"✅ Last scanned block updated to: {last_block_scanned}")
+
+    if alert_triggered:
+        message = "\n\n".join(messages) + "\n\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
+        return True, message, last_block_scanned
+    else:
+        return False, f"No deposits over {FLAG_THRESHOLD:,.0f} S tokens were made in the last hour.", last_block_scanned
+
+def check_large_deposits_custom(hours):
+    """
+    Runs a historical large deposit check for a user-specified time window (in hours).
+    This function does NOT trigger alerts or pause automation.
+    Returns a tuple: (alert_triggered, message).
+    """
+    window_seconds = int(hours * 3600)
+    start_time = int(time.time()) - window_seconds
+    block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
+    
+    block_response = make_request(block_time_url)
+    if not block_response:
+        return False, "Error: Could not fetch block time."
+    start_block = int(block_response["result"])
+
+    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_response = make_request(latest_block_url)
+    if not latest_block_response:
+        return False, "Error: Could not fetch latest block."
+    latest_block = int(latest_block_response["result"], 16)
+
+    tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={start_block}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
+    tx_response = make_request(tx_url)
+    if not tx_response:
+        return False, "Error: Could not fetch deposit logs."
+    deposits = tx_response.get("result", [])
+
+    # Process deposits and filter only large ones
+    messages = []
+    sonicscan_tx_url = "https://sonicscan.org/tx/"
+
+    for deposit in deposits:
+        tx_hash = deposit.get('transactionHash', 'N/A')
+        sender = f"0x{deposit['topics'][1][-40:]}"
+        raw_amount_assets = deposit.get("data", "0x0")[:66]
+        deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
+        deposit_amount = deposit_amount_wei / DECIMALS
+
+        if deposit_amount >= FLAG_THRESHOLD:
+            messages.append(
+                f"🚨 **LARGE DEPOSIT FOUND** 🚨\n"
+                f"💰 **{deposit_amount:,.2f} S tokens** deposited by **{sender}**\n"
+                f"🔗 [View Transaction]({sonicscan_tx_url}{tx_hash})\n"
+                f"------------------------------"
+            )
+
+    if messages:
+        return True, "\n\n".join(messages)
+    else:
+        return False, f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) were found in the last {hours} hours."

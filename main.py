@@ -7,10 +7,12 @@ from execute_transaction import fetch_transaction_by_nonce, execute_transaction 
 import os
 from dotenv import load_dotenv
 import asyncio
+import json
 
 # Load environment variables
 load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+PERSISTENCE_FILE = "/data/last_scanned_block.json"  # /data is the mounted volume
 
 # Initialize the Discord bot
 intents = discord.Intents.default()
@@ -28,6 +30,9 @@ recheck_counter = 0
 
 # Pause flag
 paused = True
+
+# Ephemeral memory: store the last scanned block number (resets on bot restart)
+last_scanned_block = None
 
 @bot.event
 async def on_ready():
@@ -48,6 +53,25 @@ async def on_message(message):
             return  # Ignore messages from non-designated channels
 
     await bot.process_commands(message)
+
+def load_last_scanned_block():
+    """
+    Loads the last scanned block number from the persistent JSON file.
+    Returns the block number as an integer, or None if not found.
+    """
+    try:
+        with open(PERSISTENCE_FILE, "r") as f:
+            data = json.load(f)
+            return data.get("last_scanned_block", None)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def save_last_scanned_block(block_number):
+    """
+    Saves the given block number to the persistent JSON file.
+    """
+    with open(PERSISTENCE_FILE, "w") as f:
+        json.dump({"last_scanned_block": block_number}, f)
 
 @bot.command(name="help")
 async def custom_help(ctx):
@@ -98,9 +122,21 @@ async def report(ctx):
     await ctx.send("📢 Fetching transaction data...")
 
     try:
-        # Run the deposit monitor check first
-        from deposit_monitor import check_large_deposits, FLAG_THRESHOLD
-        alert_triggered, deposit_message = check_large_deposits()
+        # Run the deposit monitor check using persistent block tracking
+        from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD, load_last_scanned_block, save_last_scanned_block
+        persisted_block = load_last_scanned_block()
+        if persisted_block is None:
+            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
+            start_block = None  # Full lookback if not persisted
+        else:
+            start_block = int(persisted_block) + 1
+            print(f"Resuming report scan from block: {start_block}")
+
+        alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
+
+        # Save the new last scanned block back to the JSON file
+        if new_last_block is not None:
+            save_last_scanned_block(new_last_block)
 
         if alert_triggered:
             global paused
@@ -153,6 +189,24 @@ async def report(ctx):
     except Exception as e:
         await ctx.send(f"❌ An error occurred while generating the report: {e}")
         print(f"Error: {e}")
+
+@bot.command(name="history")
+async def historical_report(ctx, hours: float):
+    """
+    Fetch historical large deposit reports (≥ FLAG_THRESHOLD) for the past specified number of hours.
+    This command does NOT trigger alerts or pause automation.
+    Usage: !history 24
+    """
+    if hours <= 0:
+        await ctx.send("❌ Invalid time range. Please enter a positive number of hours.")
+        return
+
+    await ctx.send(f"🔍 Scanning for large deposits in the last **{hours} hours**...")
+
+    from deposit_monitor import check_large_deposits_custom
+    message = check_large_deposits_custom(hours)
+
+    await ctx.send(message)
 
 @bot.command(name="execute")
 async def execute(ctx):
@@ -502,23 +556,47 @@ async def ultimate_force_execute(ctx):
 @tasks.loop(hours=1)
 async def periodic_recheck():
     """Periodic task to recheck transaction data and send a report every 6 hours."""
-    global recheck_counter
+    global recheck_counter, last_scanned_block, paused
     try:
         print("Performing periodic recheck...")
 
-        # Run the deposit monitor check first
-        from deposit_monitor import check_large_deposits
-        alert_triggered, deposit_message = check_large_deposits()
+        # Run the deposit monitor check with block tracking
+        from deposit_monitor import check_large_deposits_with_block
+
+        # Determine the starting block
+        if last_scanned_block is None:
+            print("🟢 First run detected: Performing full 65-minute lookback.")
+            start_block = None  # Forces a full 65-minute lookback
+        else:
+            start_block = int(last_scanned_block) + 1
+            print(f"🔄 Starting deposit check from block: {start_block}")
+
+        # Run deposit monitor from the appropriate block range
+        alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
+
+        # Only update last_scanned_block if new_last_block is valid
+        if new_last_block is not None:
+            if last_scanned_block is not None:
+                print(f"✅ Updating last scanned block from {last_scanned_block} to {new_last_block}")
+            else:
+                print(f"✅ Setting last scanned block for the first time: {new_last_block}")
+            last_scanned_block = new_last_block  # Update ephemeral memory
+        else:
+            print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
+
+        # Failsafe: Ensure last_scanned_block is never None after the first run
+        if last_scanned_block is None:
+            print("🚨 Critical: last_scanned_block is None! Resetting to full 65-minute lookback next loop.")
+
+        # Handle deposit alerts and pause logic
         if alert_triggered:
-            global paused
-            if not paused:  # Only change if not already paused
+            if not paused:  # Only pause if not already paused
                 paused = True
                 await broadcast_message(deposit_message)
                 print("Deposit monitor triggered a pause due to a large deposit.")
             else:
                 print("Deposit monitor detected large deposit while already paused.")
-            # Optionally, you can exit the periodic task early if needed:
-            return
+            return  # Exit early if a large deposit was found
 
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
@@ -661,11 +739,11 @@ async def periodic_recheck():
             full_report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
         else:
             if decoded:
+                strike_count = 0  # Initialize strike counter
                 while True:
                     if paused:  # Break the execution loop if pause is triggered during execution
                         print("Pause detected during execution. Stopping transaction execution.")
                         break
-
                     amount = float(decoded["amountInTokens"])
                     if staking_balance >= amount:
                         print(f"Transaction {nonce} is ready to execute. Executing now...")
@@ -676,7 +754,7 @@ async def periodic_recheck():
                             result = execute_transaction(transaction)
                             if result:
                                 print(f"Transaction {nonce} executed successfully!")
-
+    
                                 # Notify about the executed transaction
                                 await broadcast_message(
                                     f"✅ Successfully executed transaction:\n"
@@ -685,36 +763,48 @@ async def periodic_recheck():
                                     f"- **Amount**: {amount} S tokens\n"
                                     f"- **Transaction Hash**: {result}"
                                 )
-
+    
+                                # Reset strike count on successful execution
+                                strike_count = 0
+    
                                 # Introduce a delay before rechecking
                                 for _ in range(60):  # Breakable countdown
                                     if paused:
                                         print("Pause detected during delay. Breaking out of execution cycle.")
                                         break
                                     await asyncio.sleep(10)  # Sleep in 10-second intervals to allow checking pause state
-
+    
                                 # Refetch staking balance and pending transactions
                                 staking_balance = get_staking_balance()
                                 staking_balance = round(staking_balance, 1) if staking_balance else 0.0
                                 transactions = fetch_recent_transactions(limit=10)
                                 pending_transactions = filter_and_sort_pending_transactions(transactions)
-
+    
                                 if not pending_transactions:
                                     print("No more transactions to execute.")
                                     break
-
+    
                                 # Prepare the next transaction for evaluation
                                 lowest_transaction = pending_transactions[0]
                                 nonce = lowest_transaction["nonce"]
                                 hex_data = lowest_transaction.get("data", b"")
                                 decoded = decode_hex_data(hex_data) if hex_data else {}
-
+    
                                 if not decoded:
                                     print(f"Failed to decode transaction data for nonce {nonce}.")
                                     break
                             else:
-                                print(f"Failed to execute transaction {nonce}.")
-                                break
+                                strike_count += 1
+                                print(f"Failed to execute transaction {nonce}. Strike {strike_count}/3.")
+                                if strike_count >= 3:
+                                    paused = True
+                                    await broadcast_message(
+                                        "🚨 **Execution Failure Alert** 🚨\n"
+                                        "Three consecutive execution failures detected.\n"
+                                        "Automation is now paused. <@538717564067381249> and <@771222144780206100>, please investigate."
+                                    )
+                                    print("Three consecutive execution failures. Automation is paused.")
+                                    break
                         else:
                             print(f"Transaction {nonce} not found for execution.")
                             break
