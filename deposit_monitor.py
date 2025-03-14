@@ -177,7 +177,7 @@ def check_large_deposits_with_block(start_block=None):
     alert_triggered = False
     messages = []
     sonicscan_tx_url = "https://sonicscan.org/tx/"
-    last_block_scanned = start_block
+    last_block_scanned = latest_block
 
     for deposit in deposits:
         tx_hash = deposit.get('transactionHash', 'N/A')
