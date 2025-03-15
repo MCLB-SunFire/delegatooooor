@@ -218,20 +218,47 @@ def check_large_deposits_custom(hours):
     
     block_response = make_request(block_time_url)
     if not block_response:
+        print("🚨 Error: Could not fetch block time. Exiting history scan.")
         return False, "Error: Could not fetch block time."
+    
     start_block = int(block_response["result"])
 
     latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
     latest_block_response = make_request(latest_block_url)
     if not latest_block_response:
+        print("🚨 Error: Could not fetch latest block number. Exiting history scan.")
         return False, "Error: Could not fetch latest block."
+
     latest_block = int(latest_block_response["result"], 16)
 
-    tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={start_block}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
-    tx_response = make_request(tx_url)
-    if not tx_response:
-        return False, "Error: Could not fetch deposit logs."
-    deposits = tx_response.get("result", [])
+    # Define the chunk size
+    BLOCK_CHUNK_SIZE = 100_000
+
+    # Iterate through block ranges in 100,000 block chunks
+    deposits = []
+    current_start_block = start_block
+
+    print(f"🔍 Starting historical scan from block {start_block} to {latest_block} in {BLOCK_CHUNK_SIZE}-block chunks.")
+
+    while current_start_block < latest_block:
+        current_end_block = min(current_start_block + BLOCK_CHUNK_SIZE, latest_block)
+
+        print(f"🔄 Querying blocks {current_start_block} to {current_end_block}...")
+
+        tx_url = (
+            f"https://api.sonicscan.org/api?module=logs&action=getLogs"
+            f"&fromBlock={current_start_block}&toBlock={current_end_block}"
+            f"&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
+        )
+        
+        tx_response = make_request(tx_url)
+        if tx_response and "result" in tx_response:
+            print(f"✅ Retrieved {len(tx_response['result'])} transactions from blocks {current_start_block} to {current_end_block}.")
+            deposits.extend(tx_response["result"])
+        else:
+            print(f"⚠️ Warning: No response or empty data for blocks {current_start_block} to {current_end_block}. Possible timeout.")
+
+        current_start_block = current_end_block + 1  # Move to the next block range
 
     # Process deposits and filter only large ones
     messages = []
@@ -247,10 +274,12 @@ def check_large_deposits_custom(hours):
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
                 f"💰 {deposit_amount:,.2f} S tokens deposited by {sender}\n"
-                f"🔗 [View Transaction]({sonicscan_tx_url}{tx_hash})\n"
+                f"🔗 [View Transaction]({sonicscan_tx_url}{tx_hash})\u200B"
             )
 
     if messages:
+        print(f"🚀 Found {len(messages)} large deposits in the last {hours} hours.")
         return True, "\n\n".join(messages)
     else:
+        print(f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) found in the last {hours} hours.")
         return False, f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) were found in the last {hours} hours."
