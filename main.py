@@ -203,12 +203,20 @@ async def historical_report(ctx, hours: float):
 
     await ctx.send(f"🔍 Scanning for large deposits in the last **{hours} hours**...")
 
-    from deposit_monitor import check_large_deposits_custom
-    _, message = check_large_deposits_custom(hours)
+    # Run scan in a separate asyncio task so the bot stays responsive
+    bot.loop.create_task(run_historical_scan(ctx, hours))
 
-    from deposit_monitor import split_long_message
-    for part in split_long_message(message):
-        await ctx.send(part)
+async def run_historical_scan(ctx, hours):
+    """Runs the historical scan asynchronously without blocking Discord."""
+    try:
+        from deposit_monitor import check_large_deposits_custom, split_long_message
+        _, message = await asyncio.to_thread(check_large_deposits_custom, hours)  # Run in separate thread
+
+        for part in split_long_message(message):
+            await ctx.send(part)
+
+    except Exception as e:
+        await ctx.send(f"❌ Error during historical scan: {e}")
 
 @bot.command(name="execute")
 async def execute(ctx):

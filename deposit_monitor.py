@@ -8,6 +8,7 @@ CONTRACT_ADDRESS = "0xE5DA20F15420aD15DE0fa650600aFc998bbE3955"
 DEPOSIT_EVENT_TOPIC = "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
 MAX_RETRIES = 5
 INITIAL_DELAY = 1  # API rate limit handling
+REQUEST_TIMEOUT = 5  # Limit API request timeouts to 5s max
 DECIMALS = 10**18  # Convert wei to human-readable format
 FLAG_THRESHOLD = 100000  # Flag deposits ≥ 100,000 S tokens
 MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chunks
@@ -21,7 +22,7 @@ def make_request(url):
     for attempt in range(MAX_RETRIES):
         try:
             time.sleep(delay)  # Respect rate limits
-            response = requests.get(url)
+            response = requests.get(url, timeout=5)  # Apply 5-second timeout
             response.raise_for_status()  # Handle HTTP errors
 
             # Parse JSON safely
@@ -29,6 +30,8 @@ def make_request(url):
             if "result" in data:
                 return data
 
+        except (requests.exceptions.Timeout):
+            print(f"⏳ Timeout error (attempt {attempt + 1}): API did not respond within 5 seconds.")
         except (requests.exceptions.RequestException, ValueError) as e:
             print(f"❌ API request failed (attempt {attempt + 1}): {e}")
 
