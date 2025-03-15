@@ -178,7 +178,16 @@ def check_large_deposits_with_block(start_block=None):
     alert_triggered = False
     messages = []
     sonicscan_tx_url = "https://sonicscan.org/tx/"
-    last_block_scanned = latest_block
+    if deposits:
+    # Use the last deposit block instead of the latest block if deposits were found
+        last_block_scanned = max(
+            int(deposit["blockNumber"], 16) if isinstance(deposit["blockNumber"], str) else int(deposit["blockNumber"])
+            for deposit in deposits
+    )
+    else:
+        # If no deposits were found, default to the latest block
+        last_block_scanned = latest_block
+
 
     for deposit in deposits:
         tx_hash = deposit.get('transactionHash', 'N/A')
