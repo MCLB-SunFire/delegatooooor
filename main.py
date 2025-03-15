@@ -4,6 +4,8 @@ from fetch_transactions import fetch_recent_transactions, filter_and_sort_pendin
 from staking_contract import get_staking_balance
 from decode_hex import decode_hex_data
 from execute_transaction import fetch_transaction_by_nonce, execute_transaction  # Execution logic
+from deposit_monitor import check_large_deposits_custom
+from deposit_monitor import split_long_message
 import os
 from dotenv import load_dotenv
 import asyncio
@@ -203,9 +205,9 @@ async def historical_report(ctx, hours: float):
 
     await ctx.send(f"🔍 Scanning for large deposits in the last **{hours} hours**...")
 
-    from deposit_monitor import check_large_deposits_custom
     _, message = check_large_deposits_custom(hours)
-    await ctx.send(message)
+    for part in split_long_message(message):
+        await ctx.send(message)
 
 @bot.command(name="execute")
 async def execute(ctx):

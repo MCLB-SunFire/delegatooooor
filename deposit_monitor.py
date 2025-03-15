@@ -10,6 +10,7 @@ MAX_RETRIES = 5
 INITIAL_DELAY = 1  # API rate limit handling
 DECIMALS = 10**18  # Convert wei to human-readable format
 FLAG_THRESHOLD = 100000  # Flag deposits ≥ 100,000 S tokens
+MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chunks
 
 # Initialize Web3 for decoding hex values
 w3 = Web3()
@@ -283,3 +284,15 @@ def check_large_deposits_custom(hours):
     else:
         print(f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) found in the last {hours} hours.")
         return False, f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) were found in the last {hours} hours."
+
+def split_long_message(msg, max_length=MAX_MESSAGE_LENGTH):
+    """Splits a long message into multiple messages under Discord's 2000-character limit."""
+    messages = []
+    while len(msg) > max_length:
+        split_index = msg.rfind("\n", 0, max_length)  # Find a good place to split (newline)
+        if split_index == -1:  # If no newline found, split at the max length
+            split_index = max_length
+        messages.append(msg[:split_index])
+        msg = msg[split_index:].lstrip()  # Remove leading whitespace from next part
+    messages.append(msg)
+    return messages
