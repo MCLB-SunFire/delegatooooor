@@ -12,7 +12,9 @@ REQUEST_TIMEOUT = 5  # Limit API request timeouts to 5s max
 DECIMALS = 10**18  # Convert wei to human-readable format
 FLAG_THRESHOLD = 100000  # Flag deposits ≥ 100,000 S tokens
 MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chunks
-
+BLOCK_CHUNK_SIZE = 100_000 # for history command deep search
+MIN_BLOCK_CHUNK = 3_125  # Minimum chunk size before failing completely
+RETRY_LIMIT = 2  # Number of retries before reducing chunk size
 # Initialize Web3 for decoding hex values
 w3 = Web3()
 
@@ -228,12 +230,12 @@ def check_large_deposits_custom(hours):
     window_seconds = int(hours * 3600)
     start_time = int(time.time()) - window_seconds
     block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
-    
+
     block_response = make_request(block_time_url)
     if not block_response:
         print("🚨 Error: Could not fetch block time. Exiting history scan.")
         return False, "Error: Could not fetch block time."
-    
+
     start_block = int(block_response["result"])
 
     latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
@@ -244,34 +246,49 @@ def check_large_deposits_custom(hours):
 
     latest_block = int(latest_block_response["result"], 16)
 
-    # Define the chunk size
-    BLOCK_CHUNK_SIZE = 100_000
-
-    # Iterate through block ranges in 100,000 block chunks
+    # Start with large chunk size but adjust dynamically if API struggles
     deposits = []
     current_start_block = start_block
 
-    print(f"🔍 Starting historical scan from block {start_block} to {latest_block} in {BLOCK_CHUNK_SIZE}-block chunks.")
+    print(f"🔍 Starting historical scan from block {start_block} to {latest_block} with chunk size {BLOCK_CHUNK_SIZE}.")
 
     while current_start_block < latest_block:
         current_end_block = min(current_start_block + BLOCK_CHUNK_SIZE, latest_block)
+        retries = 0
 
-        print(f"🔄 Querying blocks {current_start_block} to {current_end_block}...")
+        while retries < RETRY_LIMIT:
+            print(f"🔄 Querying blocks {current_start_block} to {current_end_block}... (Chunk size: {BLOCK_CHUNK_SIZE})")
+            
+            tx_url = (
+                f"https://api.sonicscan.org/api?module=logs&action=getLogs"
+                f"&fromBlock={current_start_block}&toBlock={current_end_block}"
+                f"&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
+            )
 
-        tx_url = (
-            f"https://api.sonicscan.org/api?module=logs&action=getLogs"
-            f"&fromBlock={current_start_block}&toBlock={current_end_block}"
-            f"&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
-        )
-        
-        tx_response = make_request(tx_url)
-        if tx_response and "result" in tx_response:
-            print(f"✅ Retrieved {len(tx_response['result'])} transactions from blocks {current_start_block} to {current_end_block}.")
-            deposits.extend(tx_response["result"])
-        else:
-            print(f"⚠️ Warning: No response or empty data for blocks {current_start_block} to {current_end_block}. Possible timeout.")
+            tx_response = make_request(tx_url)
 
-        current_start_block = current_end_block + 1  # Move to the next block range
+            if tx_response and "result" in tx_response:
+                print(f"✅ Retrieved {len(tx_response['result'])} transactions from blocks {current_start_block} to {current_end_block}.")
+                deposits.extend(tx_response["result"])
+                break  # Success, exit retry loop
+
+            else:
+                print(f"⚠️ Warning: No response or empty data for blocks {current_start_block} to {current_end_block}. Possible timeout or rate limit.")
+                retries += 1
+                time.sleep(10 * retries)  # Wait longer on each retry
+            
+                # If we hit retry limit, reduce block chunk size
+                if retries == RETRY_LIMIT and BLOCK_CHUNK_SIZE > MIN_BLOCK_CHUNK:
+                    BLOCK_CHUNK_SIZE = max(BLOCK_CHUNK_SIZE // 2, MIN_BLOCK_CHUNK)
+                    print(f"⚠️ Reducing block chunk size to {BLOCK_CHUNK_SIZE} and retrying.")
+
+        # **🚨 Final Failure Condition**
+        if retries == RETRY_LIMIT and BLOCK_CHUNK_SIZE == MIN_BLOCK_CHUNK:
+            print("🚨 ERROR: All retries failed! Could not retrieve deposit history.")
+            return False, "Error: API rate limits or network failures prevented retrieving historical deposits."                    
+
+        # Move to the next chunk
+        current_start_block = current_end_block + 1
 
     # Process deposits and filter only large ones
     messages = []
