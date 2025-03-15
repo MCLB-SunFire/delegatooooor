@@ -31,8 +31,24 @@ recheck_counter = 0
 # Pause flag
 paused = True
 
-# Ephemeral memory: store the last scanned block number (resets on bot restart)
-last_scanned_block = None
+def load_last_scanned_block():
+    """
+    Loads the last scanned block number from the persistent JSON file.
+    Returns the block number as an integer, or None if not found.
+    """
+    try:
+        with open(PERSISTENCE_FILE, "r") as f:
+            data = json.load(f)
+            return data.get("last_scanned_block", None)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def save_last_scanned_block(block_number):
+    """
+    Saves the given block number to the persistent JSON file.
+    """
+    with open(PERSISTENCE_FILE, "w") as f:
+        json.dump({"last_scanned_block": block_number}, f)
 
 @bot.event
 async def on_ready():
@@ -53,25 +69,6 @@ async def on_message(message):
             return  # Ignore messages from non-designated channels
 
     await bot.process_commands(message)
-
-def load_last_scanned_block():
-    """
-    Loads the last scanned block number from the persistent JSON file.
-    Returns the block number as an integer, or None if not found.
-    """
-    try:
-        with open(PERSISTENCE_FILE, "r") as f:
-            data = json.load(f)
-            return data.get("last_scanned_block", None)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-
-def save_last_scanned_block(block_number):
-    """
-    Saves the given block number to the persistent JSON file.
-    """
-    with open(PERSISTENCE_FILE, "w") as f:
-        json.dump({"last_scanned_block": block_number}, f)
 
 @bot.command(name="help")
 async def custom_help(ctx):
@@ -121,15 +118,16 @@ async def report(ctx):
     """Fetch and send a transaction report."""
     await ctx.send("📢 Fetching transaction data...")
 
+    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
+
     try:
         # Run the deposit monitor check using persistent block tracking
-        from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD, load_last_scanned_block, save_last_scanned_block
         persisted_block = load_last_scanned_block()
         if persisted_block is None:
             print("No persisted last_scanned_block found. Using full 65-minute lookback.")
             start_block = None  # Full lookback if not persisted
         else:
-            start_block = int(persisted_block) + 1
+            start_block = persisted_block + 1
             print(f"Resuming report scan from block: {start_block}")
 
         alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
@@ -565,38 +563,41 @@ async def ultimate_force_execute(ctx):
 
 @tasks.loop(hours=1)
 async def periodic_recheck():
-    """Periodic task to recheck transaction data and send a report every 6 hours."""
-    global recheck_counter, last_scanned_block, paused
+    print("Performing periodic recheck...")
+    global recheck_counter, paused
+
+    from deposit_monitor import check_large_deposits_with_block
+
     try:
-        print("Performing periodic recheck...")
+        # 1) Read the old block from JSON
+        old_persisted_block = load_last_scanned_block()
 
-        # Run the deposit monitor check with block tracking
-        from deposit_monitor import check_large_deposits_with_block
-
-        # Determine the starting block
-        if last_scanned_block is None:
-            print("🟢 First run detected: Performing full 65-minute lookback.")
-            start_block = None  # Forces a full 65-minute lookback
+        if old_persisted_block is None:
+            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
+            start_block = None
         else:
-            start_block = int(last_scanned_block) + 1
-            print(f"🔄 Starting deposit check from block: {start_block}")
+            start_block = old_persisted_block + 1
+            print(f"Starting deposit check from block: {start_block}")
 
         # Run deposit monitor from the appropriate block range
         alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
 
-        # Only update last_scanned_block if new_last_block is valid
+        # If we get a new block from deposit_monitor:
         if new_last_block is not None:
-            if last_scanned_block is not None:
-                print(f"✅ Updating last scanned block from {last_scanned_block} to {new_last_block}")
+            if old_persisted_block is not None:
+                print(f"✅ Updating last scanned block from {old_persisted_block} to {new_last_block}")
             else:
-                print(f"✅ Setting last scanned block for the first time: {new_last_block}")
-            last_scanned_block = new_last_block  # Update ephemeral memory
+                print(f"✅ Setting last_scanned_block for the first time: {new_last_block}")
+
+            # Save the new block to JSON
+            save_last_scanned_block(new_last_block)
         else:
             print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
 
-        # Failsafe: Ensure last_scanned_block is never None after the first run
-        if last_scanned_block is None:
-            print("🚨 Critical: last_scanned_block is None! Resetting to full 65-minute lookback next loop.")
+        # 4) Failsafe: re-check that we actually have a persisted value
+        check_block = load_last_scanned_block()
+        if check_block is None:
+            print("🚨 Critical: last_scanned_block is STILL None! Will revert to full 65-minute lookback next loop.")
 
         # Handle deposit alerts and pause logic
         if alert_triggered:
