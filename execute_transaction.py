@@ -66,7 +66,6 @@ def fetch_transaction_by_nonce(nonce):
                 # Filter for the transaction with the specific nonce
                 for tx in data["results"]:
                     if tx["nonce"] == nonce:
-                        print(f"Found transaction for nonce {nonce}")
                         return tx
 
             print(f"No transaction found for nonce {nonce}.")
@@ -127,9 +126,6 @@ def execute_transaction(transaction):
         if "to" not in transaction or "data" not in transaction or "value" not in transaction:
             print(f"Transaction object is missing required fields: {transaction}")
             return None
-
-        # Log transaction details
-        print(f"Executing transaction with nonce {transaction['nonce']}")
 
         # Prepare the parameters for execTransaction
         to = transaction["to"]

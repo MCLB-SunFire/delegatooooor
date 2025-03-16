@@ -212,9 +212,6 @@ def check_large_deposits_with_block(start_block=None):
                 f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD:,.0f} S tokens."
             )
 
-    # Debugging last scanned block
-    print(f"✅ Last scanned block updated to: {last_block_scanned}")
-
     if alert_triggered:
         message = "\n\n".join(messages) + "\n\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
         return True, message, last_block_scanned

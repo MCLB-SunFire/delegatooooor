@@ -16,6 +16,7 @@ PERSISTENCE_FILE = "/data/last_scanned_block.json"  # /data is the mounted volum
 
 # Initialize the Discord bot
 intents = discord.Intents.default()
+intents.guilds = True
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # Disables default help
 
@@ -577,7 +578,6 @@ async def periodic_recheck():
             start_block = None
         else:
             start_block = old_persisted_block + 1
-            print(f"Starting deposit check from block: {start_block}")
 
         # Run deposit monitor from the appropriate block range
         alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
@@ -663,7 +663,7 @@ async def periodic_recheck():
         staking_balance = float(staking_balance)
         total_available_tokens = total_pending_tokens - staking_balance
 
-        print(f"Total Available Tokens (Pending - Staking Contract): {total_available_tokens} S tokens")
+        print(f"Staking Headroom (Pending Total - Staking Contract Balance): {total_available_tokens} S tokens")
 
         # Prepare the full report for all pending transactions
         full_report = format_transaction_report({
@@ -764,7 +764,6 @@ async def periodic_recheck():
                         if transaction:
                             result = execute_transaction(transaction)
                             if result:
-                                print(f"Transaction {nonce} executed successfully!")
     
                                 # Notify about the executed transaction
                                 await broadcast_message(
