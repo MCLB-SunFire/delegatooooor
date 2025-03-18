@@ -120,7 +120,7 @@ def execute_transaction(transaction):
     """Execute a Safe transaction using execTransaction with retry mechanism and exponential backoff."""
     max_retries = 5
     attempt = 0
-    delay = 2  # Initial delay in seconds
+    delay = 1  # Initial delay in seconds
     while attempt < max_retries:
         try:
             # Ensure the transaction has all required fields
