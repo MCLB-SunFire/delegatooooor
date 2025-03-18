@@ -225,7 +225,7 @@ def check_large_deposits_custom(hours):
     BLOCK_CHUNK_SIZE = 100_000 # for history command deep search
     MIN_BLOCK_CHUNK = 3_125  # Minimum chunk size before failing completely
     RETRY_LIMIT = 2  # Number of retries before reducing chunk size
-    
+
     window_seconds = int(hours * 3600)
     start_time = int(time.time()) - window_seconds
     block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
@@ -302,8 +302,7 @@ def check_large_deposits_custom(hours):
 
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
-                f"💰 {deposit_amount:,.2f} S tokens deposited by {sender}\n"
-                f"🔗 [View Transaction]({sonicscan_tx_url}{tx_hash})\u200B"
+                f"{deposit_amount:,.2f} $S deposited by {sender} at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
             )
 
     if messages:
