@@ -180,6 +180,8 @@ def check_large_deposits_with_block(start_block=None):
     # Process deposits and build the alert message; track the highest block scanned.
     alert_triggered = False
     messages = []
+    sonicscan_tx_url = f"https://sonicscan.org/tx/"
+    debank_url = f"https://debank.com/profile/"
 
     if deposits:
     # Use the last deposit block instead of the latest block if deposits were found
@@ -199,9 +201,6 @@ def check_large_deposits_with_block(start_block=None):
         deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
         deposit_amount = deposit_amount_wei / DECIMALS
 
-        sonicscan_tx_url = f"https://sonicscan.org/tx/{tx_hash}"
-        debank_url = f"https://debank.com/profile/{sender}"
-
         # Update last_block_scanned (if blockNumber is hex, convert it)
         deposit_block = int(deposit.get("blockNumber"), 16) if isinstance(deposit.get("blockNumber"), str) else int(deposit.get("blockNumber"))
         last_block_scanned = max(last_block_scanned, deposit_block)
@@ -209,7 +208,7 @@ def check_large_deposits_with_block(start_block=None):
         if deposit_amount >= FLAG_THRESHOLD:
             alert_triggered = True
             messages.append(
-                f"**ALERT!**, {deposit_amount:,.2f} $S deposit by [DeBank Wallet]({debank_url}) at [SonicScan TX]({sonicscan_tx_url}). Alert threshold = {FLAG_THRESHOLD:,.0f} $S."
+                f"**ALERT!**, {deposit_amount:,.2f} $S deposit by [DeBank Wallet]({debank_url}{sender}) at [SonicScan TX]({sonicscan_tx_url}{tx_hash}). Alert threshold = {FLAG_THRESHOLD:,.0f} $S."
             )
 
     if alert_triggered:
@@ -251,14 +250,12 @@ def check_large_deposits_custom(hours):
     deposits = []
     current_start_block = start_block
 
-    print(f"🔍 Starting historical scan from block {start_block} to {latest_block} with chunk size {BLOCK_CHUNK_SIZE}.")
-
     while current_start_block < latest_block:
         current_end_block = min(current_start_block + BLOCK_CHUNK_SIZE, latest_block)
         retries = 0
 
         while retries < RETRY_LIMIT:
-            print(f"🔄 Querying blocks {current_start_block} to {current_end_block}... (Chunk size: {BLOCK_CHUNK_SIZE})")
+            print(f"🔄 Querying blocks {current_start_block} to {current_end_block} (Chunk size: {BLOCK_CHUNK_SIZE})")
             
             tx_url = (
                 f"https://api.sonicscan.org/api?module=logs&action=getLogs"
@@ -294,6 +291,7 @@ def check_large_deposits_custom(hours):
     # Process deposits and filter only large ones
     messages = []
     sonicscan_tx_url = "https://sonicscan.org/tx/"
+    debank_url = f"https://debank.com/profile/"
 
     for deposit in deposits:
         tx_hash = deposit.get('transactionHash', 'N/A')
@@ -304,7 +302,7 @@ def check_large_deposits_custom(hours):
 
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
-                f"{deposit_amount:,.2f} $S deposited by {sender} at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
+                f"{deposit_amount:,.2f} $S deposited by [DeBank Wallet]({debank_url}{sender}) at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
             )
 
     if messages:
