@@ -122,20 +122,29 @@ async def report(ctx):
     from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
 
     try:
-        # Run the deposit monitor check using persistent block tracking
-        persisted_block = load_last_scanned_block()
-        if persisted_block is None:
-            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
-            start_block = None  # Full lookback if not persisted
-        else:
-            start_block = persisted_block + 1
-            print(f"Resuming report scan from block: {start_block}")
+        # 1) Read the old block from JSON
+        old_persisted_block = load_last_scanned_block()
 
+        if old_persisted_block is None:
+            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
+            start_block = None
+        else:
+            start_block = old_persisted_block + 1
+
+        # Run deposit monitor from the appropriate block range
         alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
 
-        # Save the new last scanned block back to the JSON file
+        # If we get a new block from deposit_monitor:
         if new_last_block is not None:
+            if old_persisted_block is not None:
+                print(f"✅ Updating last scanned block from {old_persisted_block} to {new_last_block}")
+            else:
+                print(f"✅ Setting last_scanned_block for the first time: {new_last_block}")
+
+            # Save the new block to JSON
             save_last_scanned_block(new_last_block)
+        else:
+            print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
 
         if alert_triggered:
             global paused

@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from web3 import Web3
 from eth_account import Account
@@ -116,67 +117,76 @@ def collect_and_sort_signatures(transaction):
     return signatures
 
 def execute_transaction(transaction):
-    """Execute a Safe transaction using execTransaction."""
-    try:
-        # Ensure the transaction has all required fields
-        if not transaction:
-            print("Transaction object is None.")
-            return None
+    """Execute a Safe transaction using execTransaction with retry mechanism and exponential backoff."""
+    max_retries = 5
+    attempt = 0
+    delay = 2  # Initial delay in seconds
+    while attempt < max_retries:
+        try:
+            # Ensure the transaction has all required fields
+            if not transaction:
+                print("Transaction object is None.")
+                return None
 
-        if "to" not in transaction or "data" not in transaction or "value" not in transaction:
-            print(f"Transaction object is missing required fields: {transaction}")
-            return None
+            if "to" not in transaction or "data" not in transaction or "value" not in transaction:
+                print(f"Transaction object is missing required fields: {transaction}")
+                return None
 
-        # Prepare the parameters for execTransaction
-        to = transaction["to"]
-        value = int(transaction["value"])
-        data = transaction.get("data", b"")  # Ensure default to empty bytes
-        if data is None:
-            data = b""  # Explicitly set None to empty bytes
-        elif isinstance(data, str):  # Convert hex string to bytes if needed
-            data = bytes.fromhex(data.lstrip("0x"))
-        operation = transaction.get("operation", 0)  # Default to 0 if not specified
-        safeTxGas = transaction.get("safeTxGas", 0)
-        baseGas = transaction.get("baseGas", 0)
-        gasPrice = int(transaction.get("gasPrice", 0))  # uint256
-        gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
-        refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
+            # Prepare the parameters for execTransaction
+            to = transaction["to"]
+            value = int(transaction["value"])
+            data = transaction.get("data", b"")  # Ensure default to empty bytes
+            if data is None:
+                data = b""  # Explicitly set None to empty bytes
+            elif isinstance(data, str):  # Convert hex string to bytes if needed
+                data = bytes.fromhex(data.lstrip("0x"))
+            operation = transaction.get("operation", 0)  # Default to 0 if not specified
+            safeTxGas = transaction.get("safeTxGas", 0)
+            baseGas = transaction.get("baseGas", 0)
+            gasPrice = int(transaction.get("gasPrice", 0))  # uint256
+            gasToken = transaction.get("gasToken", "0x0000000000000000000000000000000000000000")
+            refundReceiver = transaction.get("refundReceiver", "0x0000000000000000000000000000000000000000")
 
-        # Collect and sort signatures
-        signatures = collect_and_sort_signatures(transaction)
-        if not signatures:
-            print("No valid signatures available.")
-            return None
+            # Collect and sort signatures
+            signatures = collect_and_sort_signatures(transaction)
+            if not signatures:
+                print("No valid signatures available.")
+                return None
 
-        # Fetch the current network gas price
-        network_gas_price = web3.eth.gas_price
+            # Fetch the current network gas price
+            network_gas_price = web3.eth.gas_price
 
-        # Call the Safe's execTransaction function
-        tx = safe_contract.functions.execTransaction(
-            to,
-            value,
-            data,
-            operation,
-            safeTxGas,
-            baseGas,
-            gasPrice,
-            gasToken,
-            refundReceiver,
-            signatures,
-        ).build_transaction({
-            "from": account.address,
-            "gas": 350000,
-            "gasPrice": network_gas_price,  # Network-level gas price for blockchain
-            "nonce": web3.eth.get_transaction_count(account.address),
-            "chainId": web3.eth.chain_id,
-        })
+            # Call the Safe's execTransaction function
+            tx = safe_contract.functions.execTransaction(
+                to,
+                value,
+                data,
+                operation,
+                safeTxGas,
+                baseGas,
+                gasPrice,
+                gasToken,
+                refundReceiver,
+                signatures,
+            ).build_transaction({
+                "from": account.address,
+                "gas": 350000,
+                "gasPrice": network_gas_price,  # Network-level gas price for blockchain
+                "nonce": web3.eth.get_transaction_count(account.address),
+                "chainId": web3.eth.chain_id,
+            })
 
-        # Sign and send the transaction
-        signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            # Sign and send the transaction
+            signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
-        print(f"Transaction executed successfully. Hash: {tx_hash.hex()}")
-        return tx_hash.hex()
-    except Exception as e:
-        print(f"Error executing transaction: {e}")
-        return None
+            print(f"Transaction executed successfully. Hash: {tx_hash.hex()}")
+            return tx_hash.hex()
+        except Exception as e:
+            attempt += 1
+            print(f"Error executing transaction (Attempt {attempt}/{max_retries}): {e}")
+            if attempt == max_retries:
+                print("Max retries reached. Transaction execution failed.")
+                return None
+            time.sleep(delay)
+            delay *= 2  # Exponential backoff
