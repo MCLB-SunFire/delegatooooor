@@ -181,7 +181,7 @@ def check_large_deposits_with_block(start_block=None):
     alert_triggered = False
     messages = []
     sonicscan_tx_url = f"https://sonicscan.org/tx/"
-    debank_url = f"https://debank.com/profile/"
+    debank_url = f"https://\u200Bdebank.com/profile/"
 
     if deposits:
     # Use the last deposit block instead of the latest block if deposits were found
@@ -291,7 +291,7 @@ def check_large_deposits_custom(hours):
     # Process deposits and filter only large ones
     messages = []
     sonicscan_tx_url = "https://sonicscan.org/tx/"
-    debank_url = f"https://debank.com/profile/"
+    debank_url = f"https://\u200Bdebank.com/profile/"
 
     for deposit in deposits:
         tx_hash = deposit.get('transactionHash', 'N/A')
