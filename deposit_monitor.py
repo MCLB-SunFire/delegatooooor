@@ -181,7 +181,7 @@ def check_large_deposits_with_block(start_block=None):
     alert_triggered = False
     messages = []
     sonicscan_tx_url = f"https://sonicscan.org/tx/"
-    debank_url = f"https://\u200Bdebank.com/profile/"
+    debank_url = f"https://debank.com/profile/"
 
     if deposits:
     # Use the last deposit block instead of the latest block if deposits were found
@@ -208,7 +208,7 @@ def check_large_deposits_with_block(start_block=None):
         if deposit_amount >= FLAG_THRESHOLD:
             alert_triggered = True
             messages.append(
-                f"**ALERT!**, {deposit_amount:,.2f} $S deposit by [DeBank Wallet]({debank_url}{sender}) at [SonicScan TX]({sonicscan_tx_url}{tx_hash}). Alert threshold = {FLAG_THRESHOLD:,.0f} $S."
+                f"**ALERT!**, {deposit_amount:,.2f} $S deposit by [DeBank Wallet](<{debank_url}{sender}>) at [SonicScan TX]({sonicscan_tx_url}{tx_hash}). Alert threshold = {FLAG_THRESHOLD:,.0f} $S."
             )
 
     if alert_triggered:
@@ -291,7 +291,7 @@ def check_large_deposits_custom(hours):
     # Process deposits and filter only large ones
     messages = []
     sonicscan_tx_url = "https://sonicscan.org/tx/"
-    debank_url = f"https://\u200Bdebank.com/profile/"
+    debank_url = f"https://debank.com/profile/"
 
     for deposit in deposits:
         tx_hash = deposit.get('transactionHash', 'N/A')
@@ -302,7 +302,7 @@ def check_large_deposits_custom(hours):
 
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
-                f"{deposit_amount:,.2f} $S deposited by [DeBank Wallet]({debank_url}{sender}) at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
+                f"{deposit_amount:,.2f} $S deposited by [DeBank Wallet](<{debank_url}{sender}>) at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
             )
 
     if messages:
