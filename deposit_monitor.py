@@ -12,9 +12,7 @@ REQUEST_TIMEOUT = 5  # Limit API request timeouts to 5s max
 DECIMALS = 10**18  # Convert wei to human-readable format
 FLAG_THRESHOLD = 100000  # Flag deposits ≥ 100,000 S tokens
 MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chunks
-BLOCK_CHUNK_SIZE = 100_000 # for history command deep search
-MIN_BLOCK_CHUNK = 3_125  # Minimum chunk size before failing completely
-RETRY_LIMIT = 2  # Number of retries before reducing chunk size
+
 # Initialize Web3 for decoding hex values
 w3 = Web3()
 
@@ -182,7 +180,8 @@ def check_large_deposits_with_block(start_block=None):
     # Process deposits and build the alert message; track the highest block scanned.
     alert_triggered = False
     messages = []
-    sonicscan_tx_url = "https://sonicscan.org/tx/"
+    sonicscan_tx_url = f"https://sonicscan.org/tx/{tx_hash}"
+    debank_url = f"https://debank.com/profile/{sender}"
     if deposits:
     # Use the last deposit block instead of the latest block if deposits were found
         last_block_scanned = max(
@@ -208,8 +207,7 @@ def check_large_deposits_with_block(start_block=None):
         if deposit_amount >= FLAG_THRESHOLD:
             alert_triggered = True
             messages.append(
-                f"A deposit for {deposit_amount:,.2f} S tokens was made by {sender} at "
-                f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD:,.0f} S tokens."
+                f"**ALERT!**, {deposit_amount:,.2f} $S deposit by [DeBank Wallet]({debank_url}) at [SonicScan TX]({sonicscan_tx_url}). Alert threshold = {FLAG_THRESHOLD:,.0f} $S."
             )
 
     if alert_triggered:
@@ -224,6 +222,10 @@ def check_large_deposits_custom(hours):
     This function does NOT trigger alerts or pause automation.
     Returns a tuple: (alert_triggered, message).
     """
+    BLOCK_CHUNK_SIZE = 100_000 # for history command deep search
+    MIN_BLOCK_CHUNK = 3_125  # Minimum chunk size before failing completely
+    RETRY_LIMIT = 2  # Number of retries before reducing chunk size
+    
     window_seconds = int(hours * 3600)
     start_time = int(time.time()) - window_seconds
     block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
