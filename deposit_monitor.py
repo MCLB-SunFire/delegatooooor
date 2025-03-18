@@ -180,8 +180,7 @@ def check_large_deposits_with_block(start_block=None):
     # Process deposits and build the alert message; track the highest block scanned.
     alert_triggered = False
     messages = []
-    sonicscan_tx_url = f"https://sonicscan.org/tx/{tx_hash}"
-    debank_url = f"https://debank.com/profile/{sender}"
+
     if deposits:
     # Use the last deposit block instead of the latest block if deposits were found
         last_block_scanned = max(
@@ -199,6 +198,9 @@ def check_large_deposits_with_block(start_block=None):
         raw_amount_assets = deposit.get("data", "0x0")[:66]
         deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
         deposit_amount = deposit_amount_wei / DECIMALS
+
+        sonicscan_tx_url = f"https://sonicscan.org/tx/{tx_hash}"
+        debank_url = f"https://debank.com/profile/{sender}"
 
         # Update last_block_scanned (if blockNumber is hex, convert it)
         deposit_block = int(deposit.get("blockNumber"), 16) if isinstance(deposit.get("blockNumber"), str) else int(deposit.get("blockNumber"))
