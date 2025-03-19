@@ -610,9 +610,9 @@ async def periodic_recheck():
 
         # Handle deposit alerts and pause logic
         if alert_triggered:
+            await broadcast_message(deposit_message)
             if not paused:  # Only pause if not already paused
-                paused = True
-                await broadcast_message(deposit_message)
+                paused = True                
                 print("Deposit monitor triggered a pause due to a large deposit.")
             else:
                 print("Deposit monitor detected large deposit while already paused.")
