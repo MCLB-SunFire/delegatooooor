@@ -118,6 +118,7 @@ async def resume(ctx):
 async def report(ctx):
     """Fetch and send a transaction report."""
     await ctx.send("📢 Fetching transaction data...")
+    print("📢 Fetching transaction data with REPORT command...")
 
     from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
 
@@ -151,7 +152,7 @@ async def report(ctx):
             paused = True
             deposit_report_message = deposit_message
         else:
-            deposit_report_message = f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were made in the last hour."
+            deposit_report_message = f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were found between blocks {start_block} and {new_last_block}."
 
         # Fetch staking contract balance
         staking_balance = get_staking_balance()
