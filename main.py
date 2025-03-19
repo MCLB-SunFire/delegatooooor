@@ -578,6 +578,7 @@ async def periodic_recheck():
     global recheck_counter, paused
 
     from deposit_monitor import check_large_deposits_with_block
+    import asyncio
 
     try:
         # 1) Read the old block from JSON
@@ -589,8 +590,9 @@ async def periodic_recheck():
         else:
             start_block = old_persisted_block + 1
 
-        # Run deposit monitor from the appropriate block range
-        alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
+        # Run deposit monitor from the appropriate block range inside a seperate thread to avoid bricking discord heart beat.
+        alert_triggered, deposit_message, new_last_block = \
+            await asyncio.to_thread(check_large_deposits_with_block, start_block)
 
         # If we get a new block from deposit_monitor:
         if new_last_block is not None:

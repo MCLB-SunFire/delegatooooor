@@ -2,7 +2,6 @@ import requests
 import time
 import os
 from web3 import Web3
-import asyncio
 
 API_KEY = os.getenv("SONICSCAN_API_KEY")
 CONTRACT_ADDRESS = "0xE5DA20F15420aD15DE0fa650600aFc998bbE3955"
@@ -17,13 +16,13 @@ MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chun
 # Initialize Web3 for decoding hex values
 w3 = Web3()
 
-async def make_request(url):
+def make_request(url):
     """Helper function to make an API request with error handling and retries."""
     delay = INITIAL_DELAY
     for attempt in range(MAX_RETRIES):
         try:
-            await asyncio.sleep(delay)  # Respect rate limits
-            response = await asyncio.to_thread(requests.get, url, timeout=5)  # Run requests.get in separate thread
+            time.sleep(delay)  # Respect rate limits
+            response = requests.get(url, timeout=5)  # Apply 5-second timeout
             response.raise_for_status()  # Handle HTTP errors
 
             # Parse JSON safely
