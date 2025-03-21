@@ -65,8 +65,8 @@ def filter_and_sort_pending_transactions(transactions):
 
 def main():
     """Main function to fetch and process transaction data."""
-    print("Fetching the last 10 transactions...")
-    transactions = fetch_recent_transactions(limit=10)
+    print("Fetching the last 15 transactions...")
+    transactions = fetch_recent_transactions()
     
     if not transactions:
         print("No transactions fetched.")

@@ -159,7 +159,7 @@ async def report(ctx):
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions(limit=10)
+        transactions = fetch_recent_transactions()
         if not transactions:
             await ctx.send(deposit_report_message + "\n\n📌 No pending transactions found.")
             return
@@ -242,7 +242,7 @@ async def execute(ctx):
     staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
     # Fetch pending transactions
-    transactions = fetch_recent_transactions(limit=10)
+    transactions = fetch_recent_transactions()
     pending_transactions = filter_and_sort_pending_transactions(transactions)
 
     if not pending_transactions:
@@ -284,14 +284,14 @@ async def execute(ctx):
             f"❌ Insufficient staking contract balance to execute the transaction.\n"
             f"- **Nonce**: {nonce}\n"
             f"- **Signatures**: {signature_count}/{confirmations_required}\n"
-            f"- **Required**: {amount} S tokens\n"
-            f"- **Available**: {staking_balance} S tokens"
+            f"- **Required**: {amount:,.1f} S tokens\n"
+            f"- **Available**: {staking_balance:,.1f} S tokens"
         )
         print(
             f"Transaction with nonce {nonce} cannot be executed due to insufficient staking contract balance.\n"
             f"- Signatures: {signature_count}/{confirmations_required}\n"
-            f"- Required: {amount} S tokens\n"
-            f"- Available: {staking_balance} S tokens"
+            f"- Required: {amount:,.1f} S tokens\n"
+            f"- Available: {staking_balance:,.1f} S tokens"
         )
         return
 
@@ -308,13 +308,13 @@ async def execute(ctx):
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"            
-            f"- **Amount**: {amount} S tokens\n"
+            f"- **Amount**: {amount:,.1f} S tokens\n"
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"            
-            f"- Amount: {amount} S tokens\n"
+            f"- Amount: {amount:,.1f} S tokens\n"
             f"- Transaction Hash: {result}"
         )
     else:
@@ -331,7 +331,7 @@ async def force_execute(ctx):
     staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
     # Fetch pending transactions
-    transactions = fetch_recent_transactions(limit=10)
+    transactions = fetch_recent_transactions()
     pending_transactions = filter_and_sort_pending_transactions(transactions)
 
     if not pending_transactions:
@@ -373,14 +373,14 @@ async def force_execute(ctx):
             f"❌ Insufficient staking contract balance to execute the transaction.\n"
             f"- **Nonce**: {nonce}\n"
             f"- **Signatures**: {signature_count}/{confirmations_required}\n"
-            f"- **Required**: {amount} S tokens\n"
-            f"- **Available**: {staking_balance} S tokens"
+            f"- **Required**: {amount:,.1f} S tokens\n"
+            f"- **Available**: {staking_balance:,.1f} S tokens"
         )
         print(
             f"Transaction with nonce {nonce} cannot be executed due to insufficient staking contract balance.\n"
             f"- Signatures: {signature_count}/{confirmations_required}\n"
-            f"- Required: {amount} S tokens\n"
-            f"- Available: {staking_balance} S tokens"
+            f"- Required: {amount:,.1f} S tokens\n"
+            f"- Available: {staking_balance:,.1f} S tokens"
         )
         return
 
@@ -397,13 +397,13 @@ async def force_execute(ctx):
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"           
-            f"- **Amount**: {amount} S tokens\n"
+            f"- **Amount**: {amount:,.1f} S tokens\n"
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"            
-            f"- Amount: {amount} S tokens\n"
+            f"- Amount: {amount:,.1f} S tokens\n"
             f"- Transaction Hash: {result}"
         )
     else:
@@ -420,7 +420,7 @@ async def force_execute_no_checks(ctx):
     staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
     # Fetch pending transactions
-    transactions = fetch_recent_transactions(limit=10)
+    transactions = fetch_recent_transactions()
     pending_transactions = filter_and_sort_pending_transactions(transactions)
 
     if not pending_transactions:
@@ -469,15 +469,15 @@ async def force_execute_no_checks(ctx):
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"            
-            f"- **Amount Queued**: {amount} S tokens\n"  # Add Amount Queued
-            f"- **Amount Staked**: {staking_balance} S tokens\n"  # Add Amount Staked
+            f"- **Amount Queued**: {amount:,.1f} S tokens\n"  # Add Amount Queued
+            f"- **Amount Staked**: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
             f"- **Transaction Hash**: {result}"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"           
-            f"- Amount Queued: {amount} S tokens\n"  # Add Amount Queued
-            f"- Amount Staked: {staking_balance} S tokens\n"  # Add Amount Staked
+            f"- Amount Queued: {amount:,.1f} S tokens\n"  # Add Amount Queued
+            f"- Amount Staked: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
             f"- Transaction Hash: {result}"
         )
     else:
@@ -494,7 +494,7 @@ async def ultimate_force_execute(ctx):
     staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
     # Fetch pending transactions
-    transactions = fetch_recent_transactions(limit=10)
+    transactions = fetch_recent_transactions()
     pending_transactions = filter_and_sort_pending_transactions(transactions)
 
     if not pending_transactions:
@@ -548,13 +548,13 @@ async def ultimate_force_execute(ctx):
             await ctx.send(
                 f"✅ Transaction {nonce} executed successfully!\n"
                 f"- **Validator ID**: {validator_id}\n"                
-                f"- **Amount**: {amount} S tokens\n"
+                f"- **Amount**: {amount:,.1f} S tokens\n"
                 f"- **Transaction Hash**: {result}"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
                 f"- Validator ID: {validator_id}\n"               
-                f"- Amount: {amount} S tokens\n"
+                f"- Amount: {amount:,.1f} S tokens\n"
                 f"- Transaction Hash: {result}"
             )
         else:
@@ -627,7 +627,7 @@ async def periodic_recheck():
         print(f"Staking Contract Balance: {staking_balance} S tokens")
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions(limit=10)
+        transactions = fetch_recent_transactions()
         pending_transactions = filter_and_sort_pending_transactions(transactions)
 
         # Log pending transactions
@@ -805,7 +805,7 @@ async def periodic_recheck():
                                 # Refetch staking balance and pending transactions
                                 staking_balance = get_staking_balance()
                                 staking_balance = round(staking_balance, 1) if staking_balance else 0.0
-                                transactions = fetch_recent_transactions(limit=10)
+                                transactions = fetch_recent_transactions()
                                 pending_transactions = filter_and_sort_pending_transactions(transactions)
     
                                 if not pending_transactions:
@@ -872,7 +872,7 @@ def format_transaction_report(result, header=None):
 
     # Add the standard report content
     report_lines += [
-        f"## Staking Contract Balance: {result['staking_balance']} S tokens\n",  # Bold and larger header
+        f"## Staking Contract Balance: {result['staking_balance']:,.1f} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
         f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status':<25} {'Signatures':<10}",  # Added Signatures column
@@ -895,7 +895,7 @@ def format_transaction_report(result, header=None):
 
         # Add the line to the report with Signatures column
         report_lines.append(
-            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<10}"
+            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15,.1f} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<10}"
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
