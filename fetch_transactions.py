@@ -9,7 +9,7 @@ load_dotenv()
 SAFE_ADDRESS = os.getenv("SAFE_ADDRESS")
 BASE_URL = os.getenv("BASE_URL")
 
-def fetch_recent_transactions(limit=10):
+def fetch_recent_transactions(limit=15):
     """Fetch the last `limit` transactions from the Gnosis Safe API."""
     if not SAFE_ADDRESS or not BASE_URL:
         raise ValueError("Environment variables SAFE_ADDRESS and BASE_URL must be set.")

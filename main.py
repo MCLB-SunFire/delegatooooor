@@ -785,6 +785,12 @@ async def periodic_recheck():
                                     f"- **Amount**: {amount} S tokens\n"
                                     f"- **Transaction Hash**: {result}"
                                 )
+                                print(
+                                    f"Transaction {nonce} executed successfully.\n"
+                                    f"- Validator ID: {decoded['validatorId']}\n"            
+                                    f"- Amount: {amount} S tokens\n"
+                                    f"- Transaction Hash: {result}"
+                                )
     
                                 # Reset strike count on successful execution
                                 strike_count = 0
