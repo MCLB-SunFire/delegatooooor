@@ -311,7 +311,7 @@ async def execute(ctx):
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -400,7 +400,7 @@ async def force_execute(ctx):
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"           
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -473,7 +473,7 @@ async def force_execute_no_checks(ctx):
             f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount Queued**: {amount:,.1f} S tokens\n"  # Add Amount Queued
             f"- **Amount Staked**: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -551,7 +551,7 @@ async def ultimate_force_execute(ctx):
                 f"✅ Transaction {nonce} executed successfully!\n"
                 f"- **Validator ID**: {validator_id}\n"                
                 f"- **Amount**: {amount:,.1f} S tokens\n"
-                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
@@ -563,7 +563,7 @@ async def ultimate_force_execute(ctx):
             await ctx.send(
                 f"✅ Transaction {nonce} executed successfully!\n"
                 f"- **No decodeable data**\n"               
-                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
@@ -789,7 +789,7 @@ async def periodic_recheck():
                                     f"- **Nonce**: {nonce}\n"
                                     f"- **Validator ID**: {decoded['validatorId']}\n"
                                     f"- **Amount**: {amount} S tokens\n"
-                                    f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
+                                    f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
                                 )
                                 print(
                                     f"Transaction {nonce} executed successfully.\n"

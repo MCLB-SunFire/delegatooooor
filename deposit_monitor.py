@@ -302,7 +302,7 @@ def check_large_deposits_custom(hours):
 
         if deposit_amount >= FLAG_THRESHOLD:
             messages.append(
-                f"{deposit_amount:,.2f} $S deposited by [DeBank Wallet](<{debank_url}{sender}>) at [SonicScan TX]({sonicscan_tx_url}{tx_hash})\u200B"
+                f"{deposit_amount:,.2f} $S deposited by [DeBank Wallet](<{debank_url}{sender}>) at [SonicScan TX]({sonicscan_tx_url}{tx_hash})."
             )
 
     if messages:
