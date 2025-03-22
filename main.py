@@ -32,6 +32,8 @@ recheck_counter = 0
 # Pause flag
 paused = True
 
+SONICSCAN_TX_URL = "https://sonicscan.org/tx/"
+
 def load_last_scanned_block():
     """
     Loads the last scanned block number from the persistent JSON file.
@@ -120,7 +122,7 @@ async def report(ctx):
     await ctx.send("📢 Fetching transaction data...")
     print("📢 Fetching transaction data with REPORT command...")
 
-    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
+    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD, split_long_message
 
     try:
         # 1) Read the old block from JSON
@@ -193,8 +195,8 @@ async def report(ctx):
         # Append pause state message **only if paused**
         if paused:
             report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
-
-        await ctx.send(report)
+        for part in split_long_message(report):
+            await ctx.send(part)
     except Exception as e:
         await ctx.send(f"❌ An error occurred while generating the report: {e}")
         print(f"Error: {e}")
@@ -309,7 +311,7 @@ async def execute(ctx):
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: {result}"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -398,7 +400,7 @@ async def force_execute(ctx):
             f"✅ Transaction {nonce} executed successfully!\n"
             f"- **Validator ID**: {decoded['validatorId']}\n"           
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: {result}"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -471,7 +473,7 @@ async def force_execute_no_checks(ctx):
             f"- **Validator ID**: {decoded['validatorId']}\n"            
             f"- **Amount Queued**: {amount:,.1f} S tokens\n"  # Add Amount Queued
             f"- **Amount Staked**: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
-            f"- **Transaction Hash**: {result}"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
@@ -549,7 +551,7 @@ async def ultimate_force_execute(ctx):
                 f"✅ Transaction {nonce} executed successfully!\n"
                 f"- **Validator ID**: {validator_id}\n"                
                 f"- **Amount**: {amount:,.1f} S tokens\n"
-                f"- **Transaction Hash**: {result}"
+                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
@@ -561,7 +563,7 @@ async def ultimate_force_execute(ctx):
             await ctx.send(
                 f"✅ Transaction {nonce} executed successfully!\n"
                 f"- **No decodeable data**\n"               
-                f"- **Transaction Hash**: {result}"
+                f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
             )
             print(
                 f"Transaction {nonce} executed successfully.\n"
@@ -577,7 +579,7 @@ async def periodic_recheck():
     print("Performing periodic recheck...")
     global recheck_counter, paused
 
-    from deposit_monitor import check_large_deposits_with_block
+    from deposit_monitor import check_large_deposits_with_block, split_long_message
     import asyncio
 
     try:
@@ -750,11 +752,12 @@ async def periodic_recheck():
     
     # Check if any transaction can be executed
         if pending_transactions:
-            executed = False
             lowest_transaction = pending_transactions[0]
             nonce = lowest_transaction["nonce"]
             hex_data = lowest_transaction.get("data", b"")
             decoded = decode_hex_data(hex_data) if hex_data else {}
+            signature_count = lowest_transaction["signature_count"]
+            confirmations_required = lowest_transaction["confirmations_required"]
 
         # Add paused state message to the report
         if paused:
@@ -767,6 +770,9 @@ async def periodic_recheck():
                     if paused:  # Break the execution loop if pause is triggered during execution
                         print("Pause detected during execution. Stopping transaction execution.")
                         break
+                    if signature_count < confirmations_required:
+                        print(f"Skipping execution for nonce {nonce} because it only has {signature_count}/{confirmations_required} signatures.")
+                        break  # Exit the while loop without executing
                     amount = float(decoded["amountInTokens"])
                     if staking_balance >= amount:
                         print(f"Transaction {nonce} is ready to execute. Executing now...")
@@ -783,7 +789,7 @@ async def periodic_recheck():
                                     f"- **Nonce**: {nonce}\n"
                                     f"- **Validator ID**: {decoded['validatorId']}\n"
                                     f"- **Amount**: {amount} S tokens\n"
-                                    f"- **Transaction Hash**: {result}"
+                                    f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})"
                                 )
                                 print(
                                     f"Transaction {nonce} executed successfully.\n"
@@ -843,7 +849,8 @@ async def periodic_recheck():
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
         if recheck_counter >= 8:
-            await broadcast_message(full_report)
+            for part in split_long_message(full_report):
+                await broadcast_message(part)
             recheck_counter = 0
 
     except Exception as e:
