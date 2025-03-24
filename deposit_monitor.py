@@ -215,7 +215,7 @@ def check_large_deposits_with_block(start_block=None):
         message = "\n\n".join(messages) + "\n\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
         return True, message, last_block_scanned
     else:
-        return False, f"No deposits over {FLAG_THRESHOLD:,.0f} S tokens were made in the last hour.", last_block_scanned
+        return False, "message", last_block_scanned
 
 def check_large_deposits_custom(hours):
     """
