@@ -229,6 +229,78 @@ async def run_historical_scan(ctx, hours):
     except Exception as e:
         await ctx.send(f"❌ Error during historical scan: {e}")
 
+@bot.command(name="deposits")
+async def export_all_deposits_csv(ctx, hours: float):
+    """
+    Fetches ALL deposits to the staking contract in the last `hours` hours,
+    writes them to a CSV (TxHash, Address, Amount, RunningTotal),
+    and sends that CSV as an attachment in Discord.
+    Usage: !history_csv 24
+    """
+    # 1) Validate user input
+    if hours <= 0:
+        await ctx.send("❌ Invalid time range. Please enter a positive number of hours.")
+        return
+
+    # 2) Acknowledge in Discord
+    await ctx.send(f"🔍 Fetching ALL deposits for the last {hours} hours...")
+
+    # 3) Fetch deposits (this may take a while if hours is large, so run in a thread)
+    from deposit_monitor import fetch_all_deposits_custom
+    try:
+        deposit_list = await asyncio.to_thread(fetch_all_deposits_custom, hours)
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving deposits: {e}")
+        return
+
+    # 4) If no deposits found, let the user know
+    if not deposit_list:
+        await ctx.send(f"✅ No deposits found in the past {hours} hours.")
+        return
+
+    # 5) Build the CSV file in-memory or in a temp file
+    import csv
+    import tempfile
+
+    # We'll keep a running total
+    running_total = 0.0
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv") as tmpfile:
+        csv_writer = csv.writer(tmpfile)
+        # Write the header
+        csv_writer.writerow(["Tx Hash", "Depositor Address", "Deposit Amount", "Running Total"])
+
+        # Iterate over each deposit, compute running total
+        for deposit in deposit_list:
+            tx_hash = deposit["tx_hash"]
+            sender = deposit["sender"]
+            amount = deposit["amount"]
+            # Update running total
+            running_total += amount
+
+            # Round both the deposit amount and the running total to 1 decimal place
+            csv_writer.writerow([
+                tx_hash,
+                sender,
+                f"{amount:.1f}",
+                f"{running_total:.1f}"
+            ])
+
+        temp_csv_filename = tmpfile.name  # We'll send this file in Discord
+
+    # 6) Send the CSV as an attachment
+    try:
+        await ctx.send(
+            content=f"✅ Found {len(deposit_list)} deposits in the past {hours} hours. Here is the CSV file:",
+            file=discord.File(temp_csv_filename, filename="all_deposits.csv")
+        )
+    finally:
+        # 7) Clean up the temp file from the filesystem
+        import os
+        if os.path.exists(temp_csv_filename):
+            os.remove(temp_csv_filename)
+
 @bot.command(name="execute")
 async def execute(ctx):
     """Execute lowest nonce. Respects pause state AND token balance."""

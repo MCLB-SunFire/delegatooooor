@@ -312,6 +312,122 @@ def check_large_deposits_custom(hours):
         print(f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) found in the last {hours} hours.")
         return False, f"✅ No large deposits (≥ {FLAG_THRESHOLD:,.0f} S tokens) were found in the last {hours} hours."
 
+def fetch_all_deposits_custom(hours):
+    """
+    Fetches ALL deposits to the staking contract within the specified number of hours.
+    Returns a list of deposit dictionaries, each containing:
+      - 'tx_hash'
+      - 'sender'
+      - 'amount'  (float)
+    """
+    import time
+    
+    # We'll reuse many of the same constants and logic from the top:
+    from web3 import Web3
+    w3 = Web3()
+
+    DECIMALS = 10**18
+    CONTRACT_ADDRESS = "0xE5DA20F15420aD15DE0fa650600aFc998bbE3955"
+    DEPOSIT_EVENT_TOPIC = "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
+    # We'll reuse your 'make_request' function:
+    from deposit_monitor import make_request, API_KEY
+
+    BLOCK_CHUNK_SIZE = 100_000
+    MIN_BLOCK_CHUNK = 3_125
+    RETRY_LIMIT = 2
+
+    # 1) Convert hours to a Unix timestamp
+    window_seconds = int(hours * 3600)
+    start_time = int(time.time()) - window_seconds
+
+    # 2) Convert start_time to a block number
+    block_time_url = (
+        f"https://api.sonicscan.org/api"
+        f"?module=block"
+        f"&action=getblocknobytime"
+        f"&timestamp={start_time}"
+        f"&closest=before"
+        f"&apikey={API_KEY}"
+    )
+    block_response = make_request(block_time_url)
+    if not block_response:
+        print("🚨 Error: Could not fetch block time. Returning empty list.")
+        return []
+
+    start_block = int(block_response["result"])
+
+    # 3) Get latest block
+    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_response = make_request(latest_block_url)
+    if not latest_block_response:
+        print("🚨 Error: Could not fetch latest block number. Returning empty list.")
+        return []
+
+    latest_block = int(latest_block_response["result"], 16)
+
+    # 4) Walk through blocks in chunks, collecting all deposit logs
+    deposits = []
+    current_start_block = start_block
+
+    while current_start_block <= latest_block:
+        current_end_block = min(current_start_block + BLOCK_CHUNK_SIZE, latest_block)
+        retries = 0
+
+        while retries < RETRY_LIMIT:
+            print(f"🔄 Querying blocks {current_start_block} to {current_end_block}")
+            tx_url = (
+                f"https://api.sonicscan.org/api?module=logs&action=getLogs"
+                f"&fromBlock={current_start_block}"
+                f"&toBlock={current_end_block}"
+                f"&address={CONTRACT_ADDRESS}"
+                f"&topic0={DEPOSIT_EVENT_TOPIC}"
+                f"&apikey={API_KEY}"
+            )
+
+            tx_response = make_request(tx_url)
+            if tx_response and "result" in tx_response:
+                these_logs = tx_response["result"]
+                print(f"✅ Retrieved {len(these_logs)} deposit logs from blocks {current_start_block} to {current_end_block}.")
+                deposits.extend(these_logs)
+                break
+            else:
+                retries += 1
+                print(f"⚠️ Attempt {retries} failed for blocks {current_start_block} to {current_end_block}. Retrying...")
+                time.sleep(10 * retries)
+
+                # If we exhaust retries, reduce chunk size if possible
+                if retries == RETRY_LIMIT and BLOCK_CHUNK_SIZE > MIN_BLOCK_CHUNK:
+                    BLOCK_CHUNK_SIZE = max(BLOCK_CHUNK_SIZE // 2, MIN_BLOCK_CHUNK)
+                    print(f"⚠️ Reducing block chunk size to {BLOCK_CHUNK_SIZE} and retrying.")
+
+        # **Fail condition** if chunk size is already minimal
+        if retries == RETRY_LIMIT and BLOCK_CHUNK_SIZE == MIN_BLOCK_CHUNK:
+            print("🚨 ERROR: All retries failed at minimal chunk size. Returning partial results we have so far.")
+            break
+
+        current_start_block = current_end_block + 1
+
+    # 5) Convert logs to a more convenient structure: (tx_hash, sender, amount)
+    deposit_list = []
+    for deposit in deposits:
+        tx_hash = deposit.get('transactionHash', 'N/A')
+        # sender is in topics[1]
+        sender_topic = deposit["topics"][1]  # raw
+        sender_address = f"0x{sender_topic[-40:]}"
+        
+        # amount is in the first 32 bytes of data
+        raw_amount_assets = deposit.get("data", "0x0")[:66]  # Just the first 32 bytes
+        deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
+        deposit_amount = deposit_amount_wei / DECIMALS
+
+        deposit_list.append({
+            "tx_hash": tx_hash,
+            "sender": sender_address,
+            "amount": deposit_amount
+        })
+
+    return deposit_list
+
 def split_long_message(msg, max_length=MAX_MESSAGE_LENGTH):
     """Splits a long message into multiple messages under Discord's 2000-character limit."""
     messages = []
