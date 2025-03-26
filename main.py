@@ -283,8 +283,8 @@ async def export_all_deposits_csv(ctx, hours: float):
             csv_writer.writerow([
                 tx_hash,
                 sender,
-                f"{amount:.1f}",
-                f"{running_total:.1f}"
+                f"{amount:,.1f}",
+                f"{running_total:,.1f}"
             ])
 
         temp_csv_filename = tmpfile.name  # We'll send this file in Discord
