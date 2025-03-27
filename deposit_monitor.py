@@ -223,7 +223,7 @@ def check_large_deposits_custom(hours):
     This function does NOT trigger alerts or pause automation.
     Returns a tuple: (alert_triggered, message).
     """
-    BLOCK_CHUNK_SIZE = 50_000 # for history command deep search
+    BLOCK_CHUNK_SIZE = 25_000 # for history command deep search
     MIN_BLOCK_CHUNK = 3_125  # Minimum chunk size before failing completely
     RETRY_LIMIT = 2  # Number of retries before reducing chunk size
 
@@ -332,7 +332,7 @@ def fetch_all_deposits_custom(hours):
     # We'll reuse your 'make_request' function:
     from deposit_monitor import make_request, API_KEY
 
-    BLOCK_CHUNK_SIZE = 50_000
+    BLOCK_CHUNK_SIZE = 25_000
     MIN_BLOCK_CHUNK = 3_125
     RETRY_LIMIT = 2
 
