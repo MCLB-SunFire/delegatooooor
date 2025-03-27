@@ -292,7 +292,7 @@ async def export_all_deposits_csv(ctx, hours: float):
     # 6) Send the CSV as an attachment
     try:
         await ctx.send(
-            content=f"✅ Found {len(deposit_list)} deposits in the past {hours} hours. Here is the CSV file:",
+            content=f"✅ Found {len(deposit_list)} deposits in the past {hours} hours totaling {running_total:,.1f} S tokens. Here is the CSV file:",
             file=discord.File(temp_csv_filename, filename="all_deposits.csv")
         )
     finally:
