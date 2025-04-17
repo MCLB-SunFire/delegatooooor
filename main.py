@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from fetch_transactions import fetch_recent_transactions, filter_and_sort_pending_transactions
 from staking_contract import get_staking_balance
-from decode_hex import decode_hex_data
+from decode_hex import decode_hex_data, get_function_name
 from execute_transaction import fetch_transaction_by_nonce, execute_transaction  # Execution logic
 import os
 from dotenv import load_dotenv
@@ -172,6 +172,7 @@ async def report(ctx):
             "pending_transactions": [
                 {
                     "nonce": tx["nonce"],
+                    "func": get_function_name(tx["data"]) if tx.get("data") else "No Data",
                     "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else "No Data",
                     "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else "No Data",
                     "status": (
@@ -758,6 +759,7 @@ async def periodic_recheck():
             "pending_transactions": [
                 {
                     "nonce": tx["nonce"],
+                    "func": get_function_name(tx["data"]) if tx.get("data") else "No Data",
                     "validator_id": (decode_hex_data(tx["data"]) or {}).get("validatorId", "No Data"),
                     "amount": float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0)),
 
@@ -955,7 +957,7 @@ def format_transaction_report(result, header=None):
         f"## Staking Contract Balance: {result['staking_balance']:,.1f} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'+/-':<3} {'Nonce':<8} {'Validator ID':<15} {'Amount':<15} {'Status':<25} {'Signatures':<10}",  # Added Signatures column
+        f"{'+/-':<3} {'Nonce':<6} {'Validator':<10} {'Amount':<15} {'Status':<25} {'Sig':<7} {'Func'}",
         f"{'-'*80}",  # Adjusted table separator length
     ]
     for tx in result['pending_transactions']:
@@ -975,7 +977,7 @@ def format_transaction_report(result, header=None):
 
         # Add the line to the report with Signatures column
         report_lines.append(
-            f"{status_prefix:<3} {tx['nonce']:<8} {tx['validator_id']:<15} {tx['amount']:<15,.1f} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<10}"
+            f"{status_prefix:<3} {tx['nonce']:<6} {tx['validator_id']:<10} {tx['amount']:<15,.1f} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<7} {tx.get('func','N/A')}"
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
