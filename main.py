@@ -957,7 +957,7 @@ def format_transaction_report(result, header=None):
         f"## Staking Contract Balance: {result['staking_balance']:,.1f} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'? ':<4} {'Nonce':<7} {'Val':<6} {'Amount':<14} {'Status':<25} {'Sig':<7} {'Function':<9}",
+        f"{'+/-':<4} {'Nonce':<7} {'Val':<6} {'Amount':<14} {'Status':<25} {'Sig':<9} {'Function':<9}",
         f"{'-'*80}",  # Adjusted table separator length
     ]
     for tx in result['pending_transactions']:
