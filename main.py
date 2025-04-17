@@ -957,7 +957,7 @@ def format_transaction_report(result, header=None):
         f"## Staking Contract Balance: {result['staking_balance']:,.1f} S tokens\n",  # Bold and larger header
         "**Pending Transactions:**",
         "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'+/-':<4} {'Nonce':<7} {'Val':<6} {'Amount':<14} {'Status':<25} {'Sig':<7} Function",
+        f"{'+/-':<4} {'Nonce':<7} {'Val':<6} {'Amount':<14} {'Status':<25} {'Sig':<7} {'Function':<22}",
         f"{'-'*80}",  # Adjusted table separator length
     ]
     for tx in result['pending_transactions']:
@@ -977,7 +977,7 @@ def format_transaction_report(result, header=None):
 
         # Add the line to the report with Signatures column
         report_lines.append(
-            f"{status_prefix:<4} {tx['nonce']:<7} {tx['validator_id']:<6} {tx['amount']:<14,.1f} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<7} {tx.get('func','N/A')}"
+            f"{status_prefix:<4} {tx['nonce']:<7} {tx['validator_id']:<6} {tx['amount']:<14,.1f} {tx['status']:<25} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<7} {tx.get('func','N/A'):<22}"
         )
     report_lines.append("```")  # Close the code block
     return "\n".join(report_lines)
