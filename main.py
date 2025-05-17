@@ -705,6 +705,10 @@ async def periodic_recheck():
         # Fetch pending transactions
         transactions = fetch_recent_transactions()
         pending_transactions = filter_and_sort_pending_transactions(transactions)
+        if transactions == []:
+            await broadcast_message(
+                "⚠️  Gnosis Safe API either shat the bed again or there are legitimately no pending transactions."
+                "If the CEO of staking is on smoke break...again, then don't tell franz, you fucken snitch.")
 
         # Log pending transactions
         if not pending_transactions:
@@ -826,6 +830,7 @@ async def periodic_recheck():
             full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
     
     # Check if any transaction can be executed
+        decoded = {}
         if pending_transactions:
             lowest_transaction = pending_transactions[0]
             nonce = lowest_transaction["nonce"]
@@ -923,7 +928,7 @@ async def periodic_recheck():
 
         # Periodic reports and counter increment remain outside of the execution loop!
         recheck_counter += 1
-        if recheck_counter >= 8:
+        if recheck_counter >= 12:  # Every 12 hours
             for part in split_long_message(full_report):
                 await broadcast_message(part)
             recheck_counter = 0

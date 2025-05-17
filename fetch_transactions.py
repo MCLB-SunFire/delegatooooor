@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from dotenv import load_dotenv
 
@@ -8,6 +9,8 @@ load_dotenv()
 # Constants
 SAFE_ADDRESS = os.getenv("SAFE_ADDRESS")
 BASE_URL = os.getenv("BASE_URL")
+MAX_RETRIES    = 4          # 1 s → 2 s → 4 s → 8 s
+BACKOFF_FACTOR = 2
 
 def fetch_recent_transactions(limit=15):
     """Fetch the last `limit` transactions from the Gnosis Safe API."""
@@ -15,21 +18,29 @@ def fetch_recent_transactions(limit=15):
         raise ValueError("Environment variables SAFE_ADDRESS and BASE_URL must be set.")
 
     url = f"{BASE_URL}/api/v1/safes/{SAFE_ADDRESS}/multisig-transactions/?limit={limit}"
+    delay = 1
+
+    for attempt in range(MAX_RETRIES):
     
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        results = response.json()['results']
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            results = response.json().get("results", [])
 
-        # Add signature counts to each transaction
-        for tx in results:
-            tx["signature_count"] = len(tx.get("confirmations", []))
-            tx["confirmations_required"] = tx.get("confirmationsRequired", 0)
-
-        return results
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching transactions: {e}")
-        return []
+            # Add signature counts to each transaction
+            for tx in results:
+                tx["signature_count"] = len(tx.get("confirmations", []))
+                tx["confirmations_required"] = tx.get("confirmationsRequired", 0)
+            return results
+        
+        except (requests.exceptions.RequestException, ValueError) as e:
+            print(f"Gnosis API error (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(delay)
+                delay *= BACKOFF_FACTOR
+    # if All retries failed
+    print("Gnosis API unreachable after retries — returning empty list.")
+    return []        # graceful fallback
 
 def filter_and_sort_pending_transactions(transactions):
     """
