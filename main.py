@@ -157,11 +157,11 @@ async def report(ctx):
             deposit_report_message = f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were found between blocks {start_block} and {new_last_block}."
 
         # Fetch staking contract balance
-        staking_balance = get_staking_balance()
+        staking_balance = await asyncio.to_thread(get_staking_balance)
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions()
+        transactions = await asyncio.to_thread(fetch_recent_transactions)
         if not transactions:
             await ctx.send(deposit_report_message + "\n\n📌 No pending transactions found.")
             return
@@ -698,12 +698,12 @@ async def periodic_recheck():
             return  # Exit early if a large deposit was found
 
         # Fetch staking contract balance
-        staking_balance = get_staking_balance()
+        staking_balance = await asyncio.to_thread(get_staking_balance)
         staking_balance = round(staking_balance, 1) if staking_balance else 0.0
         print(f"Staking Contract Balance: {staking_balance} S tokens")
 
         # Fetch pending transactions
-        transactions = fetch_recent_transactions()
+        transactions = await asyncio.to_thread(fetch_recent_transactions)
         pending_transactions = filter_and_sort_pending_transactions(transactions)
         if transactions == []:
             await broadcast_message(
