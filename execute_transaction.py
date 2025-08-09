@@ -52,6 +52,14 @@ print(f"Executor Address: {account.address}")
 # Create the Safe contract instance
 safe_contract = web3.eth.contract(address=Web3.to_checksum_address(SAFE_ADDRESS), abi=SAFE_ABI)
 
+def wait_for_receipt(tx_hash, timeout=240, poll_interval=3):
+    try:
+        receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout, poll_latency=poll_interval)
+        return receipt
+    except Exception as e:
+        print(f"Error waiting for receipt: {e}")
+        return None
+
 def fetch_transaction_by_nonce(nonce):
     """Fetch transaction details from the Safe API by nonce."""
     try:
@@ -180,6 +188,13 @@ def execute_transaction(transaction):
             signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
             tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
+            # If the caller wants to gate on mining, wait and return status
+            if transaction.get("_wait_for_receipt", False):
+                receipt = wait_for_receipt(tx_hash)
+                ok = bool(receipt and getattr(receipt, "status", 0) == 1)
+                return {"ok": ok, "tx_hash": web3.to_hex(tx_hash), "receipt": receipt}
+
+            # Legacy behavior (return immediately)
             return web3.to_hex(tx_hash)
         
         except Exception as e:

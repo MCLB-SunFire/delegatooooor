@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 import asyncio
 import json
+from datetime import datetime, timezone  # if not already imported
 
 # Load environment variables
 load_dotenv()
@@ -26,8 +27,9 @@ designated_channels = {
     885764705526882335: 911280330567208971,  
 }
 
-# Counter for periodic rechecks
-recheck_counter = 0
+# Daily report anchor (UTC)
+DAILY_REPORT_UTC_HOUR = 9
+LAST_DAILY_REPORT_DATE = None
 
 # Pause flag
 paused = True
@@ -93,6 +95,8 @@ async def custom_help(ctx):
     embed.add_field(name="⚡ \u2003!shikai", value="Execute lowest nonce, ignores pause state.", inline=False)
     embed.add_field(name="🔥 \u2003!bankai", value="Execute lowest nonce, ignores pause state and token balance.", inline=False)
     embed.add_field(name="💀 \u2003!shukai9000", value="Ultimate execution weapon. ignores ALL checks (pause, balance, data).", inline=False)
+    embed.add_field(name="🕒 \u2003!history", value="Scan large deposits for a past-hours window (no alerts triggered).", inline=False)
+    embed.add_field(name="📄 \u2003!deposits", value="Export ALL deposits in a past-hours window to CSV.", inline=False)
 
     # Set the embed image
     embed.set_image(url="https://cdn.discordapp.com/attachments/1333959203638874203/1333963513177178204/beets_bleach.png?ex=679acdd5&is=67997c55&hm=eefc8ec5228ca7f64f2040ee8b112e99aaee90682def455f03018e1e5afd9125&")  # Change to your image URL
@@ -236,7 +240,7 @@ async def export_all_deposits_csv(ctx, hours: float):
     Fetches ALL deposits to the staking contract in the last `hours` hours,
     writes them to a CSV (TxHash, Address, Amount, RunningTotal),
     and sends that CSV as an attachment in Discord.
-    Usage: !history_csv 24
+    Usage: !deposits 24
     """
     # 1) Validate user input
     if hours <= 0:
@@ -377,20 +381,23 @@ async def execute(ctx):
         print(f"No transaction found for nonce {nonce}.")
         return
 
-    # Execute the transaction
-    result = execute_transaction(transaction)
-    if result:
+    # Execute the transaction and check for receipt boolean
+    transaction["_wait_for_receipt"] = True
+    res = execute_transaction(transaction)
+
+    if isinstance(res, dict) and res.get("ok"):
+        txh = res["tx_hash"]
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"            
+            f"- **Validator ID**: {decoded['validatorId']}\n"
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"            
             f"- Amount: {amount:,.1f} S tokens\n"
-            f"- Transaction Hash: {result}"
+            f"- Transaction Hash: {txh}"
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
@@ -467,19 +474,22 @@ async def force_execute(ctx):
         return
 
     # Execute the transaction
-    result = execute_transaction(transaction)
-    if result:
+    transaction["_wait_for_receipt"] = True
+    res = execute_transaction(transaction)
+
+    if isinstance(res, dict) and res.get("ok"):
+        txh = res["tx_hash"]
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"           
+            f"- **Validator ID**: {decoded['validatorId']}\n"
             f"- **Amount**: {amount:,.1f} S tokens\n"
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"            
             f"- Amount: {amount:,.1f} S tokens\n"
-            f"- Transaction Hash: {result}"
+            f"- Transaction Hash: {txh}"
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
@@ -538,22 +548,24 @@ async def force_execute_no_checks(ctx):
         print(f"No transaction found for nonce {nonce}.")
         return
 
-    # Execute the transaction
-    result = execute_transaction(transaction)
-    if result:
+    # Execute the transaction and wait for receipt boolean
+    transaction["_wait_for_receipt"] = True
+    res = execute_transaction(transaction)
+
+    if isinstance(res, dict) and res.get("ok"):
+        txh = res["tx_hash"]
         await ctx.send(
             f"✅ Transaction {nonce} executed successfully!\n"
-            f"- **Validator ID**: {decoded['validatorId']}\n"            
-            f"- **Amount Queued**: {amount:,.1f} S tokens\n"  # Add Amount Queued
-            f"- **Amount Staked**: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
-            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
+            f"- **Validator ID**: {decoded['validatorId']}\n"
+            f"- **Amount**: {amount:,.1f} S tokens\n"
+            f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
         )
         print(
             f"Transaction {nonce} executed successfully.\n"
             f"- Validator ID: {decoded['validatorId']}\n"           
             f"- Amount Queued: {amount:,.1f} S tokens\n"  # Add Amount Queued
             f"- Amount Staked: {staking_balance:,.1f} S tokens\n"  # Add Amount Staked
-            f"- Transaction Hash: {result}"
+            f"- Transaction Hash: {txh}"
         )
     else:
         await ctx.send(f"❌ Transaction {nonce} could not be executed.")
@@ -614,8 +626,12 @@ async def ultimate_force_execute(ctx):
         return
 
     # Execute the transaction regardless of data decode status
-    result = execute_transaction(transaction)
-    if result:
+    transaction["_wait_for_receipt"] = True
+    res = execute_transaction(transaction)
+
+    if isinstance(res, dict) and res.get("ok"):
+        result = res["tx_hash"]  # keep your existing message formatting below
+
         # Provide detailed information if decoded
         if decoded:
             amount = float(decoded.get("amountInTokens", 0.0))
@@ -650,7 +666,7 @@ async def ultimate_force_execute(ctx):
 @tasks.loop(hours=1)
 async def periodic_recheck():
     print("Performing periodic recheck...")
-    global recheck_counter, paused
+    global paused, LAST_DAILY_REPORT_DATE
 
     from deposit_monitor import check_large_deposits_with_block, split_long_message
     import asyncio
@@ -845,7 +861,6 @@ async def periodic_recheck():
             full_report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
         else:
             if decoded:
-                strike_count = 0  # Initialize strike counter
                 while True:
                     if paused:  # Break the execution loop if pause is triggered during execution
                         print("Pause detected during execution. Stopping transaction execution.")
@@ -857,68 +872,52 @@ async def periodic_recheck():
                     if staking_balance >= amount:
                         print(f"Transaction {nonce} is ready to execute. Executing now...")
 
-                        # Execute the transaction
+                        # Execute with receipt gating and 3 attempts spaced 60s
                         transaction = fetch_transaction_by_nonce(nonce)
                         if transaction:
-                            result = execute_transaction(transaction)
-                            if result:
-    
-                                # Notify about the executed transaction
-                                await broadcast_message(
-                                    f"✅ Successfully executed transaction:\n"
-                                    f"- **Nonce**: {nonce}\n"
-                                    f"- **Validator ID**: {decoded['validatorId']}\n"
-                                    f"- **Amount**: {amount} S tokens\n"
-                                    f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{result})\u200B"
-                                )
-                                print(
+                            attempts = 0
+                            succeeded = False
+                            while attempts < 3 and not succeeded:
+                                transaction["_wait_for_receipt"] = True
+                                res = execute_transaction(transaction)
+                                if isinstance(res, dict) and res.get("ok"):
+                                    txh = res["tx_hash"]
+                                    await broadcast_message(
+                                        f"✅ Successfully executed transaction:\n"
+                                        f"- **Nonce**: {nonce}\n"
+                                        f"- **Validator ID**: {decoded['validatorId']}\n"
+                                        f"- **Amount**: {amount:,.1f} S tokens\n"
+                                        f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
+                                    )
+                                    print(
                                     f"Transaction {nonce} executed successfully.\n"
                                     f"- Validator ID: {decoded['validatorId']}\n"            
                                     f"- Amount: {amount} S tokens\n"
-                                    f"- Transaction Hash: {result}"
-                                )
-    
-                                # Reset strike count on successful execution
-                                strike_count = 0
-    
-                                # Introduce a delay before rechecking
-                                for _ in range(60):  # Breakable countdown
-                                    if paused:
-                                        print("Pause detected during delay. Breaking out of execution cycle.")
-                                        break
-                                    await asyncio.sleep(10)  # Sleep in 10-second intervals to allow checking pause state
-    
-                                # Refetch staking balance and pending transactions
-                                staking_balance = get_staking_balance()
-                                staking_balance = round(staking_balance, 1) if staking_balance else 0.0
-                                transactions = fetch_recent_transactions()
-                                pending_transactions = filter_and_sort_pending_transactions(transactions)
-    
-                                if not pending_transactions:
-                                    print("No more transactions to execute.")
-                                    break
-    
-                                # Prepare the next transaction for evaluation
-                                lowest_transaction = pending_transactions[0]
-                                nonce = lowest_transaction["nonce"]
-                                hex_data = lowest_transaction.get("data", b"")
-                                decoded = decode_hex_data(hex_data) if hex_data else {}
-    
-                                if not decoded:
-                                    print(f"Failed to decode transaction data for nonce {nonce}.")
-                                    break
-                            else:
-                                strike_count += 1
-                                print(f"Failed to execute transaction {nonce}. Strike {strike_count}/3.")
-                                if strike_count >= 3:
-                                    paused = True
-                                    await broadcast_message(
-                                        "🚨 **Execution Failure Alert** 🚨\n"
-                                        "Three consecutive execution failures detected.\n"
-                                        "Automation is now paused. <@538717564067381249> and <@771222144780206100>, please investigate."
+                                    f"- Transaction Hash: {txh}"
                                     )
-                                    print("Three consecutive execution failures. Automation is paused.")
+                                    succeeded = True
                                     break
+                                else:
+                                    attempts += 1
+                                    if attempts < 3:
+                                        await broadcast_message(
+                                            f"❌ Execution reverted/failed (attempt {attempts}/3) for nonce {nonce}. "
+                                            f"Retrying in 60 seconds…"
+                                        )
+                                        for _ in range(60):
+                                            if paused:  # respect pause during cooldown
+                                                break
+                                            await asyncio.sleep(1)
+
+                            if not succeeded:
+                                # After 3 failures, pause and ping same IDs as your >100k alert
+                                paused = True
+                                await broadcast_message(
+                                    "🚨 **Execution Failure Alert** 🚨\n"
+                                    "This transaction failed 3 consecutive times and automation is now paused. "
+                                    "<@538717564067381249>, <@771222144780206100> please investigate."
+                                )
+                                print("Three consecutive execution failures. Automation is paused.")
                         else:
                             print(f"Transaction {nonce} not found for execution.")
                             break
@@ -926,12 +925,15 @@ async def periodic_recheck():
                         print("Insufficient balance for the next transaction.")
                         break
 
-        # Periodic reports and counter increment remain outside of the execution loop!
-        recheck_counter += 1
-        if recheck_counter >= 12:  # Every 12 hours
+        # Anchored daily report (once after 09:00 UTC)
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
+        target_today = now_utc.replace(hour=DAILY_REPORT_UTC_HOUR, minute=0, second=0, microsecond=0)
+
+        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today) and (not paused):
             for part in split_long_message(full_report):
                 await broadcast_message(part)
-            recheck_counter = 0
+            LAST_DAILY_REPORT_DATE = today
 
     except Exception as e:
         print(f"Error during periodic recheck: {e}")

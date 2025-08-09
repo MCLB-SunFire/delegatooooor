@@ -3,7 +3,8 @@ import time
 import os
 from web3 import Web3
 
-API_KEY = os.getenv("SONICSCAN_API_KEY")
+API_KEY = os.getenv("ETHERSCAN_API_KEY")
+ETHERSCAN_V2 = "https://api.etherscan.io/v2/api?chainid=146"
 CONTRACT_ADDRESS = "0xE5DA20F15420aD15DE0fa650600aFc998bbE3955"
 DEPOSIT_EVENT_TOPIC = "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
 MAX_RETRIES = 5
@@ -22,7 +23,7 @@ def make_request(url):
     for attempt in range(MAX_RETRIES):
         try:
             time.sleep(delay)  # Respect rate limits
-            response = requests.get(url, timeout=5)  # Apply 5-second timeout
+            response = requests.get(url, timeout=REQUEST_TIMEOUT)  # Apply 5-second timeout
             response.raise_for_status()  # Handle HTTP errors
 
             # Parse JSON safely
@@ -40,111 +41,6 @@ def make_request(url):
     print("🚨 Max retries reached. Skipping this request.")
     return None  # Return None if all retries fail
 
-# Step 1: Get the block number from 1 hour ago plus 5 minute overlap
-one_hour_ago = int(time.time()) - 3900  # Unix timestamp for 65 minutes ago
-block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={one_hour_ago}&closest=before&apikey={API_KEY}"
-
-block_response = make_request(block_time_url)
-if not block_response:
-    exit()
-block_one_hour_ago = int(block_response["result"])
-
-# Step 2: Get the latest block number
-latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
-
-latest_block_response = make_request(latest_block_url)
-if not latest_block_response:
-    exit()
-latest_block = int(latest_block_response["result"], 16)
-
-# Step 3: Fetch deposit transactions within the block range
-tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={block_one_hour_ago}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
-
-tx_response = make_request(tx_url)
-if not tx_response:
-    exit()
-deposits = tx_response.get("result", [])
-
-# Step 4: Process deposits and extract `amountAssets`
-for deposit in deposits:
-    tx_hash = deposit.get('transactionHash', 'N/A')
-
-    # Extract sender from `topics[1]`
-    sender_topic = deposit["topics"][1]  # Extract raw hex sender address
-    sender = f"0x{sender_topic[-40:]}"  # Convert to standard Ethereum address format
-
-    # Extract deposit amount from `data`
-    raw_amount_assets = deposit.get("data", "0x0")[:66]  # First 32 bytes (amountAssets)
-    deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
-
-    # Convert to standard decimal format
-    deposit_amount = deposit_amount_wei / DECIMALS  
-
-    # Flag large deposits
-    if deposit_amount >= FLAG_THRESHOLD:
-        print(f"🚨 **LARGE DEPOSIT ALERT** 🚨")
-        print(f"Deposit Tx: {tx_hash} | From: {sender} | Amount: {deposit_amount:,.2f} S tokens")
-        print("-----------------------------------------------------")
-    else:
-        print(f"Deposit Tx: {tx_hash} | From: {sender} | Amount: {deposit_amount:,.2f} S tokens")
-
-def check_large_deposits():
-    """
-    Runs the deposit monitor check over the last 65 minutes.
-    Returns a tuple: (alert_triggered, message)
-      - alert_triggered: True if any deposit ≥ FLAG_THRESHOLD was found.
-      - message: A string containing details of large deposits or a 'no deposits' message.
-    """
-    # Step 1: Get the block number from 65 minutes ago
-    one_hour_ago = int(time.time()) - 3900  # 65 minutes ago
-    block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={one_hour_ago}&closest=before&apikey={API_KEY}"
-    block_response = make_request(block_time_url)
-    if not block_response:
-        return False, "Error: Could not fetch block time."
-    block_one_hour_ago = int(block_response["result"])
-
-    # Step 2: Get the latest block number
-    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
-    latest_block_response = make_request(latest_block_url)
-    if not latest_block_response:
-        return False, "Error: Could not fetch latest block."
-    latest_block = int(latest_block_response["result"], 16)
-
-    # Step 3: Fetch deposit transactions within the block range
-    tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={block_one_hour_ago}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
-    tx_response = make_request(tx_url)
-    if not tx_response:
-        return False, "Error: Could not fetch deposit logs."
-    deposits = tx_response.get("result", [])
-
-    # Step 4: Process deposits and build the alert message
-    alert_triggered = False
-    messages = []
-    sonicscan_tx_url = "https://sonicscan.org/tx/"
-
-    for deposit in deposits:
-        tx_hash = deposit.get('transactionHash', 'N/A')
-        # Extract sender from topics[1]
-        sender_topic = deposit["topics"][1]
-        sender = f"0x{sender_topic[-40:]}"
-        raw_amount_assets = deposit.get("data", "0x0")[:66]
-        deposit_amount_wei = w3.to_int(hexstr=raw_amount_assets)
-        deposit_amount = deposit_amount_wei / DECIMALS
-
-        if deposit_amount >= FLAG_THRESHOLD:
-            alert_triggered = True
-            messages.append(
-                f"A deposit for {deposit_amount:,.2f} S tokens was made by {sender} at "
-                f"[{tx_hash}]({sonicscan_tx_url}{tx_hash}), which is above the current alert threshold of {FLAG_THRESHOLD:,.0f} S tokens."
-            )
-        # Optionally, you can add non-alert deposits to the message (or skip them)
-    
-    if alert_triggered:
-        message = "\n\n".join(messages) + "\n\nAutomated executions are now paused. Please investigate <@538717564067381249> and resume automation when satisfied."
-        return True, message
-    else:
-        return False, f"No deposits over {FLAG_THRESHOLD:,.0f} were made in the last hour."
-
 def check_large_deposits_with_block(start_block=None):
     """
     Runs the deposit monitor check.
@@ -154,14 +50,14 @@ def check_large_deposits_with_block(start_block=None):
     # If no start block provided, do a full 65-minute lookback.
     if start_block is None:
         one_hour_ago = int(time.time()) - 3900  # 65 minutes ago
-        block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={one_hour_ago}&closest=before&apikey={API_KEY}"
+        block_time_url = f"{ETHERSCAN_V2}&module=block&action=getblocknobytime&timestamp={one_hour_ago}&closest=before&apikey={API_KEY}"
         block_response = make_request(block_time_url)
         if not block_response:
             return False, "Error: Could not fetch block time.", None
         start_block = int(block_response["result"])
     
     # Get the latest block number
-    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_url = f"{ETHERSCAN_V2}&module=proxy&action=eth_blockNumber&apikey={API_KEY}"
     latest_block_response = make_request(latest_block_url)
     if not latest_block_response:
         return False, "Error: Could not fetch latest block.", None
@@ -171,7 +67,7 @@ def check_large_deposits_with_block(start_block=None):
     print(f"🟢 Scanning from block {start_block} to {latest_block}")
     
     # Fetch deposit transactions from start_block to latest_block
-    tx_url = f"https://api.sonicscan.org/api?module=logs&action=getLogs&fromBlock={start_block}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
+    tx_url = f"{ETHERSCAN_V2}&module=logs&action=getLogs&fromBlock={start_block}&toBlock={latest_block}&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
     tx_response = make_request(tx_url)
     if not tx_response:
         return False, "Error: Could not fetch deposit logs.", None
@@ -229,7 +125,7 @@ def check_large_deposits_custom(hours):
 
     window_seconds = int(hours * 3600)
     start_time = int(time.time()) - window_seconds
-    block_time_url = f"https://api.sonicscan.org/api?module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
+    block_time_url = f"{ETHERSCAN_V2}&module=block&action=getblocknobytime&timestamp={start_time}&closest=before&apikey={API_KEY}"
 
     block_response = make_request(block_time_url)
     if not block_response:
@@ -238,7 +134,7 @@ def check_large_deposits_custom(hours):
 
     start_block = int(block_response["result"])
 
-    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_url = f"{ETHERSCAN_V2}&module=proxy&action=eth_blockNumber&apikey={API_KEY}"
     latest_block_response = make_request(latest_block_url)
     if not latest_block_response:
         print("🚨 Error: Could not fetch latest block number. Exiting history scan.")
@@ -250,7 +146,7 @@ def check_large_deposits_custom(hours):
     deposits = []
     current_start_block = start_block
 
-    while current_start_block < latest_block:
+    while current_start_block <= latest_block:
         current_end_block = min(current_start_block + BLOCK_CHUNK_SIZE, latest_block)
         retries = 0
 
@@ -258,7 +154,7 @@ def check_large_deposits_custom(hours):
             print(f"🔄 Querying blocks {current_start_block} to {current_end_block} (Chunk size: {BLOCK_CHUNK_SIZE})")
             
             tx_url = (
-                f"https://api.sonicscan.org/api?module=logs&action=getLogs"
+                f"{ETHERSCAN_V2}&module=logs&action=getLogs"
                 f"&fromBlock={current_start_block}&toBlock={current_end_block}"
                 f"&address={CONTRACT_ADDRESS}&topic0={DEPOSIT_EVENT_TOPIC}&apikey={API_KEY}"
             )
@@ -320,18 +216,6 @@ def fetch_all_deposits_custom(hours):
       - 'sender'
       - 'amount'  (float)
     """
-    import time
-    
-    # We'll reuse many of the same constants and logic from the top:
-    from web3 import Web3
-    w3 = Web3()
-
-    DECIMALS = 10**18
-    CONTRACT_ADDRESS = "0xE5DA20F15420aD15DE0fa650600aFc998bbE3955"
-    DEPOSIT_EVENT_TOPIC = "0x73a19dd210f1a7f902193214c0ee91dd35ee5b4d920cba8d519eca65a7b488ca"
-    # We'll reuse your 'make_request' function:
-    from deposit_monitor import make_request, API_KEY
-
     BLOCK_CHUNK_SIZE = 25_000
     MIN_BLOCK_CHUNK = 3_125
     RETRY_LIMIT = 2
@@ -342,8 +226,8 @@ def fetch_all_deposits_custom(hours):
 
     # 2) Convert start_time to a block number
     block_time_url = (
-        f"https://api.sonicscan.org/api"
-        f"?module=block"
+        f"{ETHERSCAN_V2}"
+        f"&module=block"
         f"&action=getblocknobytime"
         f"&timestamp={start_time}"
         f"&closest=before"
@@ -357,7 +241,7 @@ def fetch_all_deposits_custom(hours):
     start_block = int(block_response["result"])
 
     # 3) Get latest block
-    latest_block_url = f"https://api.sonicscan.org/api?module=proxy&action=eth_blockNumber&apikey={API_KEY}"
+    latest_block_url = f"{ETHERSCAN_V2}&module=proxy&action=eth_blockNumber&apikey={API_KEY}"
     latest_block_response = make_request(latest_block_url)
     if not latest_block_response:
         print("🚨 Error: Could not fetch latest block number. Returning empty list.")
@@ -376,7 +260,7 @@ def fetch_all_deposits_custom(hours):
         while retries < RETRY_LIMIT:
             print(f"🔄 Querying blocks {current_start_block} to {current_end_block}")
             tx_url = (
-                f"https://api.sonicscan.org/api?module=logs&action=getLogs"
+                f"{ETHERSCAN_V2}&module=logs&action=getLogs"
                 f"&fromBlock={current_start_block}"
                 f"&toBlock={current_end_block}"
                 f"&address={CONTRACT_ADDRESS}"
