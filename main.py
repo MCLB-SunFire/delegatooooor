@@ -901,7 +901,7 @@ async def periodic_recheck():
                                     attempts += 1
                                     if attempts < 3:
                                         await broadcast_message(
-                                            f"❌ Execution reverted/failed (attempt {attempts}/3) for nonce {nonce}. "
+                                            f"❌ Transaction reverted (attempt {attempts}/3) for nonce {nonce}. "
                                             f"Retrying in 60 seconds…"
                                         )
                                         for _ in range(60):
@@ -913,11 +913,11 @@ async def periodic_recheck():
                                 # After 3 failures, pause and ping same IDs as your >100k alert
                                 paused = True
                                 await broadcast_message(
-                                    "🚨 **Execution Failure Alert** 🚨\n"
-                                    "This transaction failed 3 consecutive times and automation is now paused. "
+                                    "🚨 **Transaction Reverted Alert** 🚨\n"
+                                    "This transaction reverted 3 consecutive times and automation is now paused. "
                                     "<@538717564067381249>, <@771222144780206100> please investigate."
                                 )
-                                print("Three consecutive execution failures. Automation is paused.")
+                                print("Three consecutive transaction reverts. Automation is paused.")
                         else:
                             print(f"Transaction {nonce} not found for execution.")
                             break
