@@ -3,17 +3,17 @@ from discord.ext import commands, tasks
 from fetch_transactions import fetch_recent_transactions, filter_and_sort_pending_transactions
 from staking_contract import get_staking_balance
 from decode_hex import decode_hex_data, get_function_name
-from execute_transaction import fetch_transaction_by_nonce, execute_transaction  # Execution logic
+from execute_transaction import fetch_transaction_by_nonce, execute_transaction
+from report_builder import compose_full_report
+from deposit_monitor import run_deposit_probe, split_long_message
 import os
 from dotenv import load_dotenv
 import asyncio
-import json
 from datetime import datetime, timezone  # if not already imported
 
 # Load environment variables
 load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-PERSISTENCE_FILE = "/data/last_scanned_block.json"  # /data is the mounted volume
 
 # Initialize the Discord bot
 intents = discord.Intents.default()
@@ -35,25 +35,6 @@ LAST_DAILY_REPORT_DATE = None
 paused = True
 
 SONICSCAN_TX_URL = "https://sonicscan.org/tx/"
-
-def load_last_scanned_block():
-    """
-    Loads the last scanned block number from the persistent JSON file.
-    Returns the block number as an integer, or None if not found.
-    """
-    try:
-        with open(PERSISTENCE_FILE, "r") as f:
-            data = json.load(f)
-            return data.get("last_scanned_block", None)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-
-def save_last_scanned_block(block_number):
-    """
-    Saves the given block number to the persistent JSON file.
-    """
-    with open(PERSISTENCE_FILE, "w") as f:
-        json.dump({"last_scanned_block": block_number}, f)
 
 @bot.event
 async def on_ready():
@@ -123,85 +104,47 @@ async def resume(ctx):
 @bot.command(name="report")
 async def report(ctx):
     """Fetch and send a transaction report."""
-    await ctx.send("📢 Fetching transaction data...")
-    print("📢 Fetching transaction data with REPORT command...")
-
-    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD, split_long_message
-
     try:
-        # 1) Read the old block from JSON
-        old_persisted_block = load_last_scanned_block()
+        await ctx.send("📢 Fetching transaction data...")
+        print("📢 Fetching transaction data with REPORT command...")
 
-        if old_persisted_block is None:
-            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
-            start_block = None
-        else:
-            start_block = old_persisted_block + 1
-
-        # Run deposit monitor from the appropriate block range
-        alert_triggered, deposit_message, new_last_block = check_large_deposits_with_block(start_block)
-
-        # If we get a new block from deposit_monitor:
-        if new_last_block is not None:
-            if old_persisted_block is not None:
-                print(f"✅ Updating last scanned block from {old_persisted_block} to {new_last_block}")
-            else:
-                print(f"✅ Setting last_scanned_block for the first time: {new_last_block}")
-
-            # Save the new block to JSON
-            save_last_scanned_block(new_last_block)
-        else:
-            print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
+        # Run deposit check (do not persist pings here)
+        alert_triggered, deposit_report_message, _, _ = await run_deposit_probe()
 
         if alert_triggered:
-            global paused
             paused = True
-            deposit_report_message = deposit_message
-        else:
-            deposit_report_message = f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were found between blocks {start_block} and {new_last_block}."
 
-        # Fetch staking contract balance
-        staking_balance = await asyncio.to_thread(get_staking_balance)
-        staking_balance = round(staking_balance, 1) if staking_balance else 0.0
+            # Fetch staking contract balance
+            staking_balance = await asyncio.to_thread(get_staking_balance)
+            staking_balance = round(staking_balance, 1) if staking_balance else 0.0
 
-        # Fetch pending transactions
-        transactions = await asyncio.to_thread(fetch_recent_transactions)
-        if not transactions:
-            await ctx.send(deposit_report_message + "\n\n📌 No pending transactions found.")
-            return
+            # Fetch pending transactions
+            transactions = await asyncio.to_thread(fetch_recent_transactions)
+            if not transactions:
+                await ctx.send(deposit_report_message + "\n\n📌 No pending transactions found.")
+                return
 
-        # Format the report
-        report = format_transaction_report({
-            "staking_balance": staking_balance,
-            "pending_transactions": [
-                {
-                    "nonce": tx["nonce"],
-                    "func": get_function_name(tx["data"]) if tx.get("data") else "No Data",
-                    "validator_id": decode_hex_data(tx["data"])["validatorId"] if tx.get("data") else "No Data",
-                    "amount": float(decode_hex_data(tx["data"])["amountInTokens"]) if tx.get("data") else "No Data",
-                    "status": (
-                        "Signatures Needed"
-                        if tx['signature_count'] < tx['confirmations_required']
-                        else (
-                            "Ready to Execute"
-                            if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"]) else "Insufficient Balance"
-                        )
-                    ) if tx.get("data") else "No Data",
-                    "signature_count": tx.get("signature_count", 0),
-                    "confirmations_required": tx.get("confirmations_required", 0)
-                }
-                for tx in filter_and_sort_pending_transactions(transactions)
-            ]
-        })
+            # Build the consolidated report (no signer pings in !report)
+            report = compose_full_report(
+                transactions=transactions,
+                staking_balance=staking_balance,
+                decode_hex_data=decode_hex_data,
+                get_function_name=get_function_name,
+                filter_and_sort_pending_transactions=filter_and_sort_pending_transactions,
+                ping_missing_signers=False,
+            )
 
-        # Ensure deposit report results are included in the final report
-        report += f"\n{deposit_report_message}"
+            # Append deposit results
+            report += f"\n{deposit_report_message}"
 
-        # Append pause state message **only if paused**
-        if paused:
-            report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
-        for part in split_long_message(report):
-            await ctx.send(part)
+            # Append pause state message only if paused
+            if paused:
+                report += "\n\n⏸️ **Note:** Automated transaction execution is currently paused. Rechecks and reports will continue."
+
+            # Send in chunks
+            for part in split_long_message(report):
+                await ctx.send(part)
+
     except Exception as e:
         await ctx.send(f"❌ An error occurred while generating the report: {e}")
         print(f"Error: {e}")
@@ -667,51 +610,18 @@ async def ultimate_force_execute(ctx):
 async def periodic_recheck():
     print("Performing periodic recheck...")
     global paused, LAST_DAILY_REPORT_DATE
-
-    from deposit_monitor import check_large_deposits_with_block, split_long_message
-    import asyncio
-
     try:
-        # 1) Read the old block from JSON
-        old_persisted_block = load_last_scanned_block()
+        alert_triggered, deposit_message, _, _ = await run_deposit_probe()
 
-        if old_persisted_block is None:
-            print("No persisted last_scanned_block found. Using full 65-minute lookback.")
-            start_block = None
-        else:
-            start_block = old_persisted_block + 1
-
-        # Run deposit monitor from the appropriate block range inside a seperate thread to avoid bricking discord heart beat.
-        alert_triggered, deposit_message, new_last_block = \
-            await asyncio.to_thread(check_large_deposits_with_block, start_block)
-
-        # If we get a new block from deposit_monitor:
-        if new_last_block is not None:
-            if old_persisted_block is not None:
-                print(f"✅ Updating last scanned block from {old_persisted_block} to {new_last_block}")
-            else:
-                print(f"✅ Setting last_scanned_block for the first time: {new_last_block}")
-
-            # Save the new block to JSON
-            save_last_scanned_block(new_last_block)
-        else:
-            print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
-
-        # 4) Failsafe: re-check that we actually have a persisted value
-        check_block = load_last_scanned_block()
-        if check_block is None:
-            print("🚨 Critical: last_scanned_block is STILL None! Will revert to full 65-minute lookback next loop.")
-
-        # Handle deposit alerts and pause logic
         if alert_triggered:
             for chunk in split_long_message(deposit_message):
                 await broadcast_message(chunk)
-            if not paused:  # Only pause if not already paused
-                paused = True                
+            if not paused:
+                paused = True
                 print("Deposit monitor triggered a pause due to a large deposit.")
             else:
                 print("Deposit monitor detected large deposit while already paused.")
-            return  # Exit early if a large deposit was found
+            return
 
         # Fetch staking contract balance
         staking_balance = await asyncio.to_thread(get_staking_balance)
@@ -773,77 +683,25 @@ async def periodic_recheck():
 
         print(f"Staking Headroom (Pending Total - Staking Contract Balance): {total_available_tokens} S tokens")
 
-        # Prepare the full report for all pending transactions
-        full_report = format_transaction_report({
-            "staking_balance": staking_balance,
-            "pending_transactions": [
-                {
-                    "nonce": tx["nonce"],
-                    "func": get_function_name(tx["data"]) if tx.get("data") else "No Data",
-                    "validator_id": (decode_hex_data(tx["data"]) or {}).get("validatorId", "No Data"),
-                    "amount": float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0)),
+        # Build the consolidated report via shared helper (with signer pings ON for the daily/periodic path)
+        full_report = compose_full_report(
+            transactions=transactions,
+            staking_balance=staking_balance,
+            decode_hex_data=decode_hex_data,
+            get_function_name=get_function_name,
+            filter_and_sort_pending_transactions=filter_and_sort_pending_transactions,
+            ping_missing_signers=True,  # ping signers in periodic/daily report
+        )
 
-                    "status": (
-                        "Signatures Needed"
-                        if tx['signature_count'] < tx['confirmations_required']
-                        else (
-                            "Ready to Execute"
-                            if staking_balance >= float(decode_hex_data(tx["data"])["amountInTokens"])
-                            else "Insufficient Balance"
-                        )
-                    ) if tx.get("data") else "No Data",
-                    "signature_count": tx.get("signature_count", 0),  # Add signature count
-                    "confirmations_required": tx.get("confirmations_required", 0)  # Add confirmations required
-                }
-                for tx in pending_transactions
-            ]
-        }, header="Periodic Recheck Report")
+        # Preserve your "Periodic Recheck Report" header
+        full_report = "### Periodic Recheck Report ###\n\n" + full_report
 
-        # Append no_tx_message if there are no transactions
+        # Preserve your "no pending transactions" note behavior
         if not pending_transactions:
             full_report += no_tx_message
 
-        # Check if total available tokens are below 1 million and append to the report
-        if total_available_tokens < 1_000_000:
-            warning_message = (
-                f"⚠️ **Warning:** The token staking headroom (total pending - staking contract balance) "
-                f"has dropped below 1 million.\n"
-                f"**Current Headroom:** {total_available_tokens} S tokens\n"
-                f"<@771222144780206100>, <@538717564067381249> please queue up more transactions." # add more IDs linearly as needed.
-            )
-            full_report += f"\n\n{warning_message}"
-
-        # Check if any transaction is missing signatures
-        signer_discord_map = {
-            "0x69503B52764138e906C883eD6ef4Cac939eb998C": 892276475045249064,
-            "0x693f30c37D5a0Db9258C636E93Ccf011ACd8c90c": 232514597200855040,
-            "0xB3B1B2d1C9745E98e93F21DC2e4D816DA8a2440c": 538717564067381249,
-            "0xf05Ea14723d6501AfEeA3bcFF8c36e375f3a7129": 771222144780206100,
-            "0xa01Bfd7F1Be1ccF81A02CF7D722c30bDCc029718": 258369063124860928,
-        }
-        missing_signatures = {}
-
-        for tx in pending_transactions:
-            if tx["signature_count"] < tx["confirmations_required"]:
-                signed_addresses = {conf["owner"] for conf in tx["confirmations"]}
-                for address, discord_id in signer_discord_map.items():
-                    if address not in signed_addresses:
-                        if discord_id not in missing_signatures:
-                            missing_signatures[discord_id] = []
-                        missing_signatures[discord_id].append(tx["nonce"])
-
-        # Create a grouped warning message for all signers
-        if missing_signatures:
-            # Group all warnings into a single block
-            signature_warning_lines = ["⚠️ **Warning:** The following transactions are missing signatures:"]
-            for discord_id, nonces in missing_signatures.items():
-                signature_warning_lines.append(
-                    f"- <@{discord_id}>: Nonce: {', '.join(map(str, nonces))}"
-                )
-
-            # Add the grouped warnings to the full report
-            full_report += "\n\n" + "\n".join(signature_warning_lines)
-            full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
+        # Preserve your Safe queue link at the end
+        full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
     
     # Check if any transaction can be executed
         decoded = {}
@@ -890,10 +748,10 @@ async def periodic_recheck():
                                         f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
                                     )
                                     print(
-                                    f"Transaction {nonce} executed successfully.\n"
-                                    f"- Validator ID: {decoded['validatorId']}\n"            
-                                    f"- Amount: {amount} S tokens\n"
-                                    f"- Transaction Hash: {txh}"
+                                        f"Transaction {nonce} executed successfully.\n"
+                                        f"- Validator ID: {decoded['validatorId']}\n"            
+                                        f"- Amount: {amount} S tokens\n"
+                                        f"- Transaction Hash: {txh}"
                                     )
                                     succeeded = True
                                     break
@@ -930,7 +788,7 @@ async def periodic_recheck():
         today = now_utc.date()
         target_today = now_utc.replace(hour=DAILY_REPORT_UTC_HOUR, minute=0, second=0, microsecond=0)
 
-        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today) and (not paused):
+        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today):
             for part in split_long_message(full_report):
                 await broadcast_message(part)
             LAST_DAILY_REPORT_DATE = today
@@ -950,44 +808,6 @@ async def broadcast_message(message):
                     await channel.send(message)
                 except Exception as send_error:
                     print(f"Error sending message to channel {channel.name}: {send_error}")
-
-def format_transaction_report(result, header=None):
-    """Format the transaction report for Discord with color-coded statuses."""
-    report_lines = []
-
-    # Add a custom header if provided
-    if header:
-        report_lines.append(f"### {header} ###\n")
-
-    # Add the standard report content
-    report_lines += [
-        f"## Staking Contract Balance: {result['staking_balance']:,.1f} S tokens\n",  # Bold and larger header
-        "**Pending Transactions:**",
-        "```diff",  # Use Markdown code block with 'diff' syntax
-        f"{'+/-':<5} {'Nonce':<7} {'Val':<6} {'Amount':<13} {'Status':<24} {'Sig':<7} {'Function':<9}",
-        f"{'-'*80}",  # Adjusted table separator length
-    ]
-    for tx in result['pending_transactions']:
-        status_value = tx['status'] or "No Data"  # Ensure status is always a string
-
-        # Determine the prefix based on status
-        if status_value.startswith("Signatures Needed"):
-            status_prefix = "-"  # Red highlight for missing signatures
-        elif status_value == "Insufficient Balance":
-            status_prefix = "-"  # Red highlight for insufficient balance
-        elif status_value == "Ready to Execute":
-            status_prefix = "+"  # Green highlight for ready to execute
-        elif status_value == "No Data":
-            status_prefix = "?"  # Neutral or gray highlight for missing data
-        else:
-            status_prefix = "-"  # Default red highlight for unknown status
-
-        # Add the line to the report with Signatures column
-        report_lines.append(
-            f"{status_prefix:<5} {tx['nonce']:<7} {tx['validator_id']:<6} {tx['amount']:<13,.1f} {tx['status']:<24} {tx.get('signature_count', 0)}/{tx.get('confirmations_required', 0):<5} {tx.get('func','N/A'):<9}"
-        )
-    report_lines.append("```")  # Close the code block
-    return "\n".join(report_lines)
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)

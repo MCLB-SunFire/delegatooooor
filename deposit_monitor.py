@@ -1,6 +1,8 @@
 import requests
 import time
 import os
+import json
+import asyncio
 from web3 import Web3
 
 API_KEY = os.getenv("ETHERSCAN_API_KEY")
@@ -13,9 +15,66 @@ REQUEST_TIMEOUT = 5  # Limit API request timeouts to 5s max
 DECIMALS = 10**18  # Convert wei to human-readable format
 FLAG_THRESHOLD = 100000  # Flag deposits ≥ 100,000 S tokens
 MAX_MESSAGE_LENGTH = 2000 # Split long discord messages into 2000-character chunks
+PERSISTENCE_FILE = "/data/last_scanned_block.json"  # /data is the mounted volume
 
 # Initialize Web3 for decoding hex values
 w3 = Web3()
+
+def load_last_scanned_block():
+    """Read persisted last scanned block number from JSON file. Returns int or None."""
+    try:
+        if not os.path.exists(PERSISTENCE_FILE):
+            return None
+        with open(PERSISTENCE_FILE, "r") as f:
+            data = json.load(f)
+        return data.get("last_scanned_block")
+    except Exception as e:
+        print(f"⚠️ Failed to read {PERSISTENCE_FILE}: {e}")
+        return None
+
+def save_last_scanned_block(block_num: int):
+    """Persist last scanned block number to JSON file."""
+    try:
+        with open(PERSISTENCE_FILE, "w") as f:
+            json.dump({"last_scanned_block": int(block_num)}, f)
+    except Exception as e:
+        print(f"⚠️ Failed to write {PERSISTENCE_FILE}: {e}")
+
+async def run_deposit_probe(start_block=None):
+    """
+    Checks for large deposits starting from `start_block` (or last persisted block if None).
+    Saves the latest scanned block. Returns (alert_triggered, deposit_message, start_block, new_last_block).
+    """
+    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
+
+    # Read last block if no start_block provided
+    old_persisted_block = load_last_scanned_block()
+    if start_block is None:
+        start_block = old_persisted_block + 1 if old_persisted_block is not None else None
+
+    # Run check
+    alert_triggered, deposit_message, new_last_block = await asyncio.to_thread(
+        check_large_deposits_with_block, start_block
+    )
+
+    # Save updated block
+    if new_last_block is not None:
+        if old_persisted_block is not None:
+            print(f"✅ Updating last scanned block from {old_persisted_block} to {new_last_block}")
+        else:
+            print(f"✅ Setting last_scanned_block for the first time: {new_last_block}")
+        save_last_scanned_block(new_last_block)
+    else:
+        print("⚠️ Warning: new_last_block returned as None. Retrying from previous block next loop.")
+
+    # No deposit found
+    if not alert_triggered:
+        deposit_message = (
+            f"✅ No deposits over {FLAG_THRESHOLD:,.0f} S tokens were found "
+            f"between blocks {start_block} and {new_last_block}."
+        )
+
+    return alert_triggered, deposit_message, start_block, new_last_block
 
 def make_request(url):
     """Helper function to make an API request with error handling and retries."""
