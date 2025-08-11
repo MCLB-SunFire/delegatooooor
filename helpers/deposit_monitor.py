@@ -45,8 +45,6 @@ async def run_deposit_probe(start_block=None):
     Checks for large deposits starting from `start_block` (or last persisted block if None).
     Saves the latest scanned block. Returns (alert_triggered, deposit_message, start_block, new_last_block).
     """
-    from deposit_monitor import check_large_deposits_with_block, FLAG_THRESHOLD
-
     # Read last block if no start_block provided
     old_persisted_block = load_last_scanned_block()
     if start_block is None:

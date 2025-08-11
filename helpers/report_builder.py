@@ -74,7 +74,7 @@ def compose_full_report(
                 "nonce": tx["nonce"],
                 "func": get_function_name(tx["data"]) if tx.get("data") else "No Data",
                 "validator_id": (decode_hex_data(tx["data"]) or {}).get("validatorId", "No Data") if tx.get("data") else "No Data",
-                "amount": float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0)) if tx.get("data") else "No Data",
+                "amount": float((decode_hex_data(tx["data"]) or {}).get("amountInTokens", 0.0)) if tx.get("data") else 0.0,
                 "status": (
                     "Signatures Needed"
                     if tx['signature_count'] < tx['confirmations_required']
@@ -98,13 +98,15 @@ def compose_full_report(
         for tx in pending if tx.get("data")
     )
     total_available_tokens = total_pending_tokens - float(staking_balance)
-    if total_available_tokens > 0:
+
+    # match previous behavior and wording
+    if total_available_tokens < 1_000_000:
         full_report += (
             "\n\n"
             f"⚠️ **Warning:** The token staking headroom (total pending - staking contract balance) "
             f"has dropped below 1 million.\n"
             f"**Current Headroom:** {total_available_tokens} S tokens\n"
-            f"<@771222144780206100>, <@538717564067381249> please queue up more transactions." # add more IDs linearly as needed.
+            f"<@771222144780206100>, <@538717564067381249> please queue up more transactions."
         )
 
     # 4) Missing signatures — now respects ping_missing_signers
