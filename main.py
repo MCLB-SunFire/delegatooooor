@@ -890,10 +890,10 @@ async def periodic_recheck():
                                         f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
                                     )
                                     print(
-                                    f"Transaction {nonce} executed successfully.\n"
-                                    f"- Validator ID: {decoded['validatorId']}\n"            
-                                    f"- Amount: {amount} S tokens\n"
-                                    f"- Transaction Hash: {txh}"
+                                        f"Transaction {nonce} executed successfully.\n"
+                                        f"- Validator ID: {decoded['validatorId']}\n"            
+                                        f"- Amount: {amount} S tokens\n"
+                                        f"- Transaction Hash: {txh}"
                                     )
                                     succeeded = True
                                     break
@@ -930,7 +930,7 @@ async def periodic_recheck():
         today = now_utc.date()
         target_today = now_utc.replace(hour=DAILY_REPORT_UTC_HOUR, minute=0, second=0, microsecond=0)
 
-        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today) and (not paused):
+        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today):
             for part in split_long_message(full_report):
                 await broadcast_message(part)
             LAST_DAILY_REPORT_DATE = today
