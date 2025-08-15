@@ -19,7 +19,6 @@ def register_hot_commands(
         initial_message: str,
         check_pause: bool,
         check_balance: bool,
-        bankai_print_extras: bool,
         allow_no_data_branch: bool,  # only shukai9000 uses this
     ):
         # pause-gate (only for !execute)
@@ -143,22 +142,12 @@ def register_hot_commands(
                     f"- **Amount**: {amount:,.1f} S tokens\n"
                     f"- **Transaction Hash**: [View on SonicScan]({SONICSCAN_TX_URL}{txh})\u200B"
                 )
-                if bankai_print_extras:
-                    # bankai: add extra print lines
-                    print(
-                        f"Transaction {nonce} executed successfully.\n"
-                        f"- Validator ID: {decoded['validatorId']}\n"
-                        f"- Amount Queued: {amount:,.1f} S tokens\n"
-                        f"- Amount Staked: {staking_balance:,.1f} S tokens\n"
-                        f"- Transaction Hash: {txh}"
-                    )
-                else:
-                    print(
-                        f"Transaction {nonce} executed successfully.\n"
-                        f"- Validator ID: {decoded['validatorId']}\n"
-                        f"- Amount: {amount:,.1f} S tokens\n"
-                        f"- Transaction Hash: {txh}"
-                    )
+                print(
+                    f"Transaction {nonce} executed successfully.\n"
+                    f"- Validator ID: {decoded['validatorId']}\n"
+                    f"- Amount: {amount:,.1f} S tokens\n"
+                    f"- Transaction Hash: {txh}"
+                )
         else:
             await ctx.send(f"❌ Transaction {nonce} could not be executed.")
             print(f"Transaction {nonce} could not be executed.\n")
@@ -173,7 +162,6 @@ def register_hot_commands(
             initial_message="⚔️ Checking for executable transactions...",
             check_pause=True,
             check_balance=True,
-            bankai_print_extras=False,
             allow_no_data_branch=False,
         )
 
@@ -185,7 +173,6 @@ def register_hot_commands(
             initial_message="⚡ Overriding pause state, executing the lowest nonce transaction...",
             check_pause=False,
             check_balance=True,
-            bankai_print_extras=False,
             allow_no_data_branch=False,
         )
 
@@ -197,7 +184,6 @@ def register_hot_commands(
             initial_message="🔥 Overriding pause state AND token balance, executing the lowest nonce transaction...",
             check_pause=False,
             check_balance=False,
-            bankai_print_extras=True,   # adds the two extra print lines
             allow_no_data_branch=False,
         )
 
@@ -209,6 +195,5 @@ def register_hot_commands(
             initial_message="💀 Unleashing ultimate power! Executing the lowest nonce transaction...",
             check_pause=False,
             check_balance=False,
-            bankai_print_extras=False,
             allow_no_data_branch=True,  # uses the special success message when decode fails
         )

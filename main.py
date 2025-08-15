@@ -184,9 +184,10 @@ async def periodic_recheck():
         if not pending_transactions:
             full_report += no_tx_message
 
-        # Preserve your Safe queue link at the end
-        full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
-    
+        # Preserve your Safe queue link at the end, only if atleast 1 sig is missing.
+        if any(tx["signature_count"] < tx["confirmations_required"] for tx in pending_transactions):
+            full_report += "\n\n <https://app.safe.global/transactions/queue?safe=sonic:0x6840Bd91417373Af296cc263e312DfEBcAb494ae>"
+
     # Check if any transaction can be executed
         decoded = {}
         if pending_transactions:
@@ -272,10 +273,16 @@ async def periodic_recheck():
         today = now_utc.date()
         target_today = now_utc.replace(hour=DAILY_REPORT_UTC_HOUR, minute=0, second=0, microsecond=0)
 
-        if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today):
-            for part in split_long_message(full_report):
-                await broadcast_message(part)
-            LAST_DAILY_REPORT_DATE = today
+        global LAST_DAILY_REPORT_DATE
+        if LAST_DAILY_REPORT_DATE is None:
+            # If started after today's 09:00 UTC, skip report until tomorrow.
+            if now_utc >= target_today:
+                LAST_DAILY_REPORT_DATE = today
+        else:
+            if (now_utc >= target_today) and (LAST_DAILY_REPORT_DATE != today):
+                for part in split_long_message(full_report):
+                    await broadcast_message(part)
+                LAST_DAILY_REPORT_DATE = today
 
     except Exception as e:
         print(f"Error during periodic recheck: {e}")
